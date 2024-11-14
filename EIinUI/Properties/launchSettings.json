@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "ElinUI": {
+      "commandName": "Project"
+    },
+    "Elin": {
+      "commandName": "Executable",
+      "executablePath": "C:\\Games\\Steam\\steamapps\\common\\Elin\\Elin.exe"
+    }
+  }
+}

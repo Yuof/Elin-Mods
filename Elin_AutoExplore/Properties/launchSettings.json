@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Elin_AutoExplore": {
+      "commandName": "Project",
+      "remoteDebugEnabled": false
+    }
+  }
+}
