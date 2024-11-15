@@ -1,6 +1,0 @@
-<Project>
-  <!-- Modify this and remove the .template from the filename to change the game path just for yourself -->
-  <PropertyGroup>
-    <GamePath>C:\Games\Steam\steamapps\common\Elin</GamePath>
-  </PropertyGroup>
-</Project>

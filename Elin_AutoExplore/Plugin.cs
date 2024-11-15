@@ -7,11 +7,11 @@ using UnityEngine;
 
 namespace ExampleMod;
 
-[BepInPlugin("yuof.elin.autoExplore.mod", "Elin AutoExplorer", "1.0.0.0")]
+[BepInPlugin("yuof.elin.autoExplore.mod", "Elin AutoExplorer", "1.0.1.0")]
 public class Plugin : BaseUnityPlugin
 {
     private Zone currentZone;
-    private Point currentPos => playerCharacter.pos;
+    private Point currentPos => this.playerCharacter.pos;
     private Chara playerCharacter => ELayer.pc;
     private bool isEnable = false;
     private State state = State.Idle;
@@ -20,16 +20,18 @@ public class Plugin : BaseUnityPlugin
     private ConfigEntry<int> minHP;
     private ConfigEntry<bool> handleTraps;
     private ConfigEntry<KeyCode> activationKey;
+    private ConfigEntry<bool> handleFighting;
 
     private void Awake()
     {
         var harmony = new Harmony("yuof.elin.autoExplore.mod");
         harmony.PatchAll();
-        this.activationKey = Config.Bind("General", "ActivationKey", KeyCode.L, "Key to start and stop autoexplore.");
-        this.handleTraps = Config.Bind("Toggles", "HandleTraps", true, "Should autoexplore disarm traps?");
-        this.useMeditation = Config.Bind("Toggles", "UseMeditation", true, "Should autoexplore meditate for HP/MP regen?");
-        this.minMP = Config.Bind("Regen", "minMP", 90, "Percentage of MP to start meditation.");
-        this.minHP = Config.Bind("Regen", "minHP", 100, "Percentage of HP to start meditation.");
+        this.activationKey = this.Config.Bind("General", "ActivationKey", KeyCode.L, "Key to start and stop autoexplore.");
+        this.handleTraps = this.Config.Bind("Toggles", "HandleTraps", true, "Should autoexplore disarm traps?");
+        this.useMeditation = this.Config.Bind("Toggles", "UseMeditation", true, "Should autoexplore meditate for HP/MP regen?");
+        this.handleFighting = this.Config.Bind("Toggles", "HandleFighting", true, "Should autoexplore fight enemies?");
+        this.minMP = this.Config.Bind("Regen", "minMP", 90, "Percentage of MP to start meditation.");
+        this.minHP = this.Config.Bind("Regen", "minHP", 100, "Percentage of HP to start meditation.");
     }
     private void Unload()
     {
@@ -41,45 +43,44 @@ public class Plugin : BaseUnityPlugin
     {
         if (Input.GetKeyDown(this.activationKey.Value))
         {
-            Logger.LogInfo("L key pressed");
-            if (isEnable)
+            this.Logger.LogInfo("L key pressed");
+            if (this.isEnable)
             {
-                isEnable = false;
+                this.isEnable = false;
                 this.state = State.Starting;
-                Logger.LogInfo("Auto explore disabled.");
+                this.Logger.LogInfo("Auto explore disabled.");
             }
             else
             {
-                isEnable = true;
+                this.isEnable = true;
                 this.state = State.Starting;
-                Logger.LogInfo("Auto explore enabled.");
+                this.Logger.LogInfo("Auto explore enabled.");
             }
         }
 
-        if (!isEnable) return;
+        if (!this.isEnable) return;
 
         if (!EClass.core.IsGameStarted
-                || playerCharacter == null
+                || this.playerCharacter == null
                 || ELayer._zone.IsPlayerFaction
-                || playerCharacter.isDead)
+                || this.playerCharacter.isDead)
         {
             this.isEnable = false;
             return;
         }
-        if (playerCharacter.ai.status == AIAct.Status.Fail && !playerCharacter.ai.IsMoveAI && this.state != State.Starting)
+        if (this.playerCharacter.ai.status == AIAct.Status.Fail && !this.playerCharacter.ai.IsMoveAI && this.state != State.Starting)
         {
-            Logger.LogWarning("Current AIAct failed!. " + playerCharacter.ai.Name);
+            this.Logger.LogWarning("Current AIAct failed!. " + this.playerCharacter.ai.Name);
             this.isEnable = false;
             return;
         }
-        if (!playerCharacter.ai.IsIdle) return;
 
-        if (!playerCharacter.ai.IsRunning) this.state = State.Idle;
-        if (playerCharacter.ai.IsIdle) this.state = State.Idle;
+        if (!this.playerCharacter.ai.IsRunning) this.state = State.Idle;
+        if (this.playerCharacter.ai.IsIdle) this.state = State.Idle;
         var enemies = this.FindVisibleEnemies();
         var unexplored = this.FindUnexploredPoints();
         var loot = this.FindLoot();
-        var points = unexplored.Concat(loot).OrderBy(p => p.Distance(currentPos)).ToList();
+        var points = unexplored.Concat(loot).OrderBy(p => p.Distance(this.currentPos)).ToList();
         var trap = this.handleTraps.Value ? this.FindTrap() : null;
         var shouldRest = this.useMeditation.Value && this.ShouldRest();
 
@@ -99,13 +100,13 @@ public class Plugin : BaseUnityPlugin
                 if (shouldRest) { this.HandleResting(); break; }
                 if (trap != null) { this.HandleTrap(trap); break; }
                 if (points.Any()) { this.HandleMovement(points); break; }
-                Logger.LogMessage("Nothing to do.");
+                this.Logger.LogMessage("Nothing to do.");
                 this.isEnable = false;
                 break;
             default:
                 break;
         }
-        Logger.LogInfo("Current State is " + this.state);
+        this.Logger.LogInfo("Current State is " + this.state);
     }
 
     private List<Point> FindUnexploredPoints()
@@ -123,7 +124,7 @@ public class Plugin : BaseUnityPlugin
             }
         });
 
-        points = points.OrderBy(p => p.Distance(currentPos)).ToList();
+        points = points.OrderBy(p => p.Distance(this.currentPos)).ToList();
         //Logger.LogInfo($"Found {points.Count} hidden points.");
         return points;
     }
@@ -152,8 +153,8 @@ public class Plugin : BaseUnityPlugin
             }
         });
 
-        points = points.OrderBy(p => p.Distance(currentPos)).ToList();
-        Logger.LogInfo($"Found {points.Count} loot points.");
+        points = points.OrderBy(p => p.Distance(this.currentPos)).ToList();
+        this.Logger.LogInfo($"Found {points.Count} loot points.");
         return points;
     }
 
@@ -161,7 +162,8 @@ public class Plugin : BaseUnityPlugin
     {
         var map = ELayer._map;
         var cells = map.cells;
-        var currentFov = playerCharacter.fov.ListPoints();
+        var currentFov = this.playerCharacter.fov.ListPoints();
+        currentFov = currentFov.OrderBy(p => p.Distance(this.currentPos)).ToList();
         foreach (var point in currentFov)
         {
             if (!point.IsHidden && !point.IsBlocked && point.HasThing && this.IsPointReachable(point))
@@ -194,23 +196,24 @@ public class Plugin : BaseUnityPlugin
     private bool IsPointReachable(Point point)
     {
         var path = new PathProgress();
-        path.RequestPathImmediate(currentPos, point, 0, false);
+        path.RequestPathImmediate(this.currentPos, point, 0, false);
         return path.HasPath;
 
     }
 
     private void HandleCombat(List<Chara> enemies)
     {
-        var nearestEnemy = enemies.OrderBy(enemy => enemy.pos.Distance(currentPos)).First();
-        Logger.LogMessage($"Current enemies: {enemies.Count()}");
+        var nearestEnemy = enemies.OrderBy(enemy => enemy.pos.Distance(this.currentPos)).First();
+        this.Logger.LogMessage($"Current enemies: {enemies.Count()}");
         EClass.pc.SetAIImmediate(new GoalAutoCombat(nearestEnemy));
         this.state = State.Combat;
     }
 
     private List<Chara> FindVisibleEnemies()
     {
+        if (this.handleFighting.Value == false) return [];
         var map = ELayer._map;
-        var currentFov = playerCharacter.fov.ListPoints();
+        var currentFov = this.playerCharacter.fov.ListPoints();
         //Logger.LogMessage("CurrentFov.Count: " + currentFov.Count);
         var allChars = map.charas.ToList();
         var currentCharas = allChars.Where(chara => currentFov.Contains(chara.pos)).ToList();
@@ -223,33 +226,33 @@ public class Plugin : BaseUnityPlugin
     private void HandleMovement(List<Point> points)
     {
         var point = points[0];
-        Logger.LogInfo($"Moving to point {point}");
+        this.Logger.LogInfo($"Moving to point {point}");
         var Ai = new AI_Goto(point, 0, false, false);
-        playerCharacter.SetAIImmediate(Ai);
+        this.playerCharacter.SetAIImmediate(Ai);
         this.state = State.Exploring;
     }
 
     private void HandleTrap(Card trap)
     {
-        Logger.LogMessage("Handling trap " + trap.Name );
-        if (currentPos.Distance(trap.pos) == 1)
-            (trap.trait as TraitTrap).TryDisarmTrap(playerCharacter);
+        this.Logger.LogMessage("Handling trap " + trap.Name );
+        if (this.currentPos.Distance(trap.pos) == 1)
+            (trap.trait as TraitTrap).TryDisarmTrap(this.playerCharacter);
         else
         {
             var Ai = new AI_Goto(trap, 1, false, false);
-            playerCharacter.SetAIImmediate(Ai);
+            this.playerCharacter.SetAIImmediate(Ai);
         }
         this.state = State.Exploring;
     }
 
     private void HandleResting()
     {
-        Logger.LogMessage("Resting");
+        this.Logger.LogMessage("Resting");
         var canSleep = this.playerCharacter.CanSleep();
         if (!canSleep)
         {
             var Ai = new AI_Meditate();
-            playerCharacter.SetAIImmediate(Ai);
+            this.playerCharacter.SetAIImmediate(Ai);
         }
         else
         {
@@ -272,7 +275,7 @@ public class Plugin : BaseUnityPlugin
             return false;
         }
 
-        if (playerCharacter.things.IsFull(thing))
+        if (this.playerCharacter.things.IsFull(thing))
         {
             return false;
         }
