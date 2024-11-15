@@ -3,6 +3,7 @@ using BepInEx.Configuration;
 using HarmonyLib;
 using System.Collections.Generic;
 using System.Linq;
+using Elin_AutoExplore;
 using UnityEngine;
 
 namespace ExampleMod;
@@ -68,12 +69,31 @@ public class Plugin : BaseUnityPlugin
             this.isEnable = false;
             return;
         }
-        if (this.playerCharacter.ai.status == AIAct.Status.Fail && !this.playerCharacter.ai.IsMoveAI && this.state != State.Starting)
+
+
+        if (this.playerCharacter.ai.status == AIAct.Status.Fail && this.state != State.Starting)
         {
-            this.Logger.LogWarning("Current AIAct failed!. " + this.playerCharacter.ai.Name);
-            this.isEnable = false;
-            return;
+            //this.Logger.LogWarning("Current AIAct failed!. " + this.playerCharacter.ai.Name);
+            var currentAi = this.playerCharacter.ai;
+            var userCanceled = HookUserInteraction.UserCanceledAiActs.Contains(currentAi);
+            //this.Logger.LogWarning("UserCanceledAiActs: " + HookUserInteraction.UserCanceledAiActs.Count);
+
+            if (userCanceled)
+            {
+                this.Logger.LogWarning("User canceled AIAct. Stopping autoExplore.");
+                this.isEnable = false;
+                return;
+            }
+
+            if (!currentAi.IsMoveAI)
+            {
+                this.isEnable = false;
+                return;
+            }
         }
+
+        if (this.playerCharacter.IsDeadOrSleeping)
+            return;
 
         if (!this.playerCharacter.ai.IsRunning) this.state = State.Idle;
         if (this.playerCharacter.ai.IsIdle) this.state = State.Idle;
@@ -106,7 +126,7 @@ public class Plugin : BaseUnityPlugin
             default:
                 break;
         }
-        this.Logger.LogInfo("Current State is " + this.state);
+        //this.Logger.LogInfo("Current State is " + this.state);
     }
 
     private List<Point> FindUnexploredPoints()
@@ -154,7 +174,7 @@ public class Plugin : BaseUnityPlugin
         });
 
         points = points.OrderBy(p => p.Distance(this.currentPos)).ToList();
-        this.Logger.LogInfo($"Found {points.Count} loot points.");
+        //this.Logger.LogInfo($"Found {points.Count} loot points.");
         return points;
     }
 
@@ -282,9 +302,7 @@ public class Plugin : BaseUnityPlugin
 
         return true;
     }
-
-
-
+    
     private enum State
     {
         Starting,
