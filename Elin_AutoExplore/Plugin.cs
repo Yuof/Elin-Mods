@@ -268,7 +268,8 @@ public class Plugin : BaseUnityPlugin
     private void HandleResting()
     {
         this.Logger.LogMessage("Resting");
-        var canSleep = this.playerCharacter.CanSleep();
+        var hasBed = this.playerCharacter.things.Find<TraitBed>() != null;
+        var canSleep = this.playerCharacter.CanSleep() && hasBed;
         if (!canSleep)
         {
             var Ai = new AI_Meditate();
