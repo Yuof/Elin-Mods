@@ -223,6 +223,12 @@ public class Plugin : BaseUnityPlugin
 
     private void HandleCombat(List<Chara> enemies)
     {
+        if (this.handleFighting.Value == false)
+        {
+            this.state = State.Finished;
+            this.isEnable = false;
+            return;
+        }
         var nearestEnemy = enemies.OrderBy(enemy => enemy.pos.Distance(this.currentPos)).First();
         this.Logger.LogMessage($"Current enemies: {enemies.Count()}");
         EClass.pc.SetAIImmediate(new GoalAutoCombat(nearestEnemy));
@@ -231,7 +237,6 @@ public class Plugin : BaseUnityPlugin
 
     private List<Chara> FindVisibleEnemies()
     {
-        if (this.handleFighting.Value == false) return [];
         var map = ELayer._map;
         var currentFov = this.playerCharacter.fov.ListPoints();
         //Logger.LogMessage("CurrentFov.Count: " + currentFov.Count);
