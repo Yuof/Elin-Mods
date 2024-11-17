@@ -3,19 +3,19 @@ using BepInEx.Configuration;
 using HarmonyLib;
 using System.Collections.Generic;
 using System.Linq;
-using Elin_AutoExplore;
 using UnityEngine;
 
-namespace ExampleMod;
+namespace Elin_AutoExplore;
 
 [BepInPlugin("yuof.elin.autoExplore.mod", "Elin AutoExplorer", "1.0.1.0")]
 public class Plugin : BaseUnityPlugin
 {
-    private Zone currentZone;
-    private Point currentPos => this.playerCharacter.pos;
     private Chara playerCharacter => ELayer.pc;
+
+    private Point currentPos => this.playerCharacter.pos;
     private bool isEnable = false;
     private State state = State.Idle;
+
     private ConfigEntry<bool> useMeditation;
     private ConfigEntry<int> minMP;
     private ConfigEntry<int> minHP;
@@ -73,7 +73,7 @@ public class Plugin : BaseUnityPlugin
 
         if (this.playerCharacter.ai.status == AIAct.Status.Fail && this.state != State.Starting)
         {
-            //this.Logger.LogWarning("Current AIAct failed!. " + this.playerCharacter.ai.Name);
+            this.Logger.LogWarning("Current AIAct failed!. " + this.playerCharacter.ai.Name);
             var currentAi = this.playerCharacter.ai;
             var userCanceled = HookUserInteraction.UserCanceledAiActs.Contains(currentAi);
             //this.Logger.LogWarning("UserCanceledAiActs: " + HookUserInteraction.UserCanceledAiActs.Count);
@@ -87,22 +87,32 @@ public class Plugin : BaseUnityPlugin
 
             if (!currentAi.IsMoveAI)
             {
-                this.isEnable = false;
-                return;
+                this.Logger.LogWarning("Non-move AIAct failed. Stopping autoExplore.");
+                //this.Logger.LogWarning("AIAct: " + currentAi.child.Name);
+                //this.Logger.LogWarning("AIAct: " + currentAi.child.IsMoveAI);
+                //this.isEnable = false;
+                //return;
             }
         }
 
         if (this.playerCharacter.IsDeadOrSleeping)
             return;
 
-        if (!this.playerCharacter.ai.IsRunning) this.state = State.Idle;
-        if (this.playerCharacter.ai.IsIdle) this.state = State.Idle;
+        if (!this.playerCharacter.ai.IsRunning)
+        {
+            //this.Logger.LogInfo("AIAct is not running.");
+            this.state = State.Idle;
+        }
+        if (this.playerCharacter.ai.IsIdle)
+        {
+            //this.Logger.LogInfo("AIAct is idle.");
+            this.state = State.Idle;
+        }
+
         var enemies = this.FindVisibleEnemies();
-        var unexplored = this.FindUnexploredPoints();
-        var loot = this.FindLoot();
-        var points = unexplored.Concat(loot).OrderBy(p => p.Distance(this.currentPos)).ToList();
-        var trap = this.handleTraps.Value ? this.FindTrap() : null;
         var shouldRest = this.useMeditation.Value && this.ShouldRest();
+
+        var trap = this.handleTraps.Value ? this.FindTrap() : null;
 
         switch (this.state)
         {
@@ -119,7 +129,8 @@ public class Plugin : BaseUnityPlugin
                 if (enemies.Any()) { this.HandleCombat(enemies); break; }
                 if (shouldRest) { this.HandleResting(); break; }
                 if (trap != null) { this.HandleTrap(trap); break; }
-                if (points.Any()) { this.HandleMovement(points); break; }
+                var actions = this.FindPotentialActions();
+                if (actions.Any()) { this.HandleActions(actions); break; }
                 this.Logger.LogMessage("Nothing to do.");
                 this.isEnable = false;
                 break;
@@ -129,43 +140,52 @@ public class Plugin : BaseUnityPlugin
         //this.Logger.LogInfo("Current State is " + this.state);
     }
 
-    private List<Point> FindUnexploredPoints()
+    private List<AIAct> FindPotentialActions()
+    {
+        var unexplored = this.FindUnexploredPoints();
+        var loot = this.FindLoot();
+        var harvestables = this.FindHarvestables();
+        var actions = unexplored.Concat(loot)
+                               .Concat(harvestables)
+                               .OrderBy(p => this.currentPos.RealDistance(p.GetDestinationPoint()))
+                               .ToList();
+        //this.Logger.LogInfo($"Found {actions.Count} potential actions.");
+        return actions;
+    }
+
+    private List<AIAct> FindUnexploredPoints()
     {
         var map = ELayer._map;
 
         var cells = map.cells;
-        var points = new List<Point>();
+        var tasks = new List<AIAct>();
         map.ForeachPoint(point =>
         {
             if (!point.IsSeen && !point.IsBlocked && this.IsPointReachable(point))
             {
-                
-                points.Add(new Point(point));
+                tasks.Add(new AI_Goto(point, 1));
             }
         });
 
-        points = points.OrderBy(p => p.Distance(this.currentPos)).ToList();
         //Logger.LogInfo($"Found {points.Count} hidden points.");
-        return points;
+        return tasks;
     }
 
-    private List<Point> FindLoot()
+    private List<AIAct> FindLoot()
     {
         var map = ELayer._map;
-
-        var cells = map.cells;
-        var points = new List<Point>();
+        var tasks = new List<AIAct>();
         map.ForeachPoint(point =>
         {
             if (!point.IsHidden && !point.IsBlocked && point.HasThing && this.IsPointReachable(point))
             {
                 var things = point.Things;
-                foreach ( var thing in things )
+                foreach (var thing in things)
                 {
                     //Logger.LogInfo(thing.ToString() + " | " +thing.GetRootCard().placeState + " | " + this.CanPick(thing));
                     if (thing.GetRootCard().placeState == PlaceState.roaming && this.CanPick(thing) && !thing.isNPCProperty)
                     {
-                        points.Add(new Point(point));
+                        tasks.Add(new AI_Goto(point, 0));
                         //Logger.LogInfo(thing.ToString() + " | " + thing.GetRootCard().placeState + " | " + this.CanPick(thing)+ " | " + thing.isNPCProperty + " | " + thing.ExistsOnMap);
                     }
 
@@ -173,15 +193,13 @@ public class Plugin : BaseUnityPlugin
             }
         });
 
-        points = points.OrderBy(p => p.Distance(this.currentPos)).ToList();
         //this.Logger.LogInfo($"Found {points.Count} loot points.");
-        return points;
+        return tasks;
     }
 
     private Card? FindTrap()
     {
         var map = ELayer._map;
-        var cells = map.cells;
         var currentFov = this.playerCharacter.fov.ListPoints();
         currentFov = currentFov.OrderBy(p => p.Distance(this.currentPos)).ToList();
         foreach (var point in currentFov)
@@ -195,7 +213,7 @@ public class Plugin : BaseUnityPlugin
                     if (thing.GetRootCard().placeState == PlaceState.installed && thing.trait is TraitTrap)
                     {
                         var trait = thing.trait as TraitTrap;
-                        if (trait.CanDisarmTrap)
+                        if (trait!.CanDisarmTrap)
                             return thing.GetRootCard();
 
                     }
@@ -205,18 +223,37 @@ public class Plugin : BaseUnityPlugin
         return null;
     }
 
+    private List<AIAct> FindHarvestables()
+    {
+        var map = ELayer._map;
+        var tasks = new List<AIAct>();
+        map.ForeachPoint(point =>
+        {
+            //this.Logger.LogInfo("Checking point " + point);
+            if (!this.IsPointReachable(point, 1)) return;
+            var task = TaskHarvest.TryGetAct(ELayer.pc, point);
+            if (task != null)
+            {
+                tasks.Add(task);
+                //this.Logger.LogInfo(task.ToString() + " " + task.target + task.TargetType);
+            }
+        });
+        return tasks;
+    }
+
     private bool ShouldRest()
     {
         return
                this.playerCharacter.hp * 100 < this.playerCharacter.MaxHP * this.minHP.Value
             || this.playerCharacter.mana.value * 100 < this.playerCharacter.mana.max * this.minMP.Value
+            || this.playerCharacter.stamina.value <= 0
             ;
     }
-
-    private bool IsPointReachable(Point point)
+     
+    public bool IsPointReachable(Point point, int distance = 0)
     {
         var path = new PathProgress();
-        path.RequestPathImmediate(this.currentPos, point, 0, false);
+        path.RequestPathImmediate(this.currentPos, point, distance, false);
         return path.HasPath;
 
     }
@@ -248,20 +285,19 @@ public class Plugin : BaseUnityPlugin
         return enemies;
     }
 
-    private void HandleMovement(List<Point> points)
+    private void HandleActions(List<AIAct> acts)
     {
-        var point = points[0];
-        this.Logger.LogInfo($"Moving to point {point}");
-        var Ai = new AI_Goto(point, 0, false, false);
-        this.playerCharacter.SetAIImmediate(Ai);
+        var ai = acts.First();
+        this.Logger.LogInfo($"Doing action {ai.Name}/(move:{ai.IsMoveAI}) to point {ai.GetDestinationPoint()}");
+        this.playerCharacter.SetAIImmediate(ai);
         this.state = State.Exploring;
     }
 
     private void HandleTrap(Card trap)
     {
-        this.Logger.LogMessage("Handling trap " + trap.Name );
+        this.Logger.LogMessage("Handling trap " + trap.Name);
         if (this.currentPos.Distance(trap.pos) == 1)
-            (trap.trait as TraitTrap).TryDisarmTrap(this.playerCharacter);
+            (trap.trait as TraitTrap)!.TryDisarmTrap(this.playerCharacter);
         else
         {
             var Ai = new AI_Goto(trap, 1, false, false);
@@ -308,7 +344,7 @@ public class Plugin : BaseUnityPlugin
 
         return true;
     }
-    
+
     private enum State
     {
         Starting,

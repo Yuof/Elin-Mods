@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ElinUI", "EIinUI\ElinUI.csp
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Elin_AutoExplore", "Elin_AutoExplore\Elin_AutoExplore.csproj", "{26762979-4C33-4CC3-A045-03C6D2565AD1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Elin_SkillHelper", "Elin_SkillHelper\Elin_SkillHelper.csproj", "{F36B4D8D-8A37-4ACC-AA70-F76F54752B9A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{26762979-4C33-4CC3-A045-03C6D2565AD1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{26762979-4C33-4CC3-A045-03C6D2565AD1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{26762979-4C33-4CC3-A045-03C6D2565AD1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F36B4D8D-8A37-4ACC-AA70-F76F54752B9A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F36B4D8D-8A37-4ACC-AA70-F76F54752B9A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F36B4D8D-8A37-4ACC-AA70-F76F54752B9A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F36B4D8D-8A37-4ACC-AA70-F76F54752B9A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
