@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Elin_AutoExplore;
 
-[BepInPlugin("yuof.elin.autoExplore.mod", "Elin AutoExplorer", "1.0.1.0")]
+[BepInPlugin("yuof.elin.autoExplore.mod", "Elin AutoExplorer", "1.1.0.0")]
 public class Plugin : BaseUnityPlugin
 {
     private Chara playerCharacter => ELayer.pc;
@@ -16,12 +16,15 @@ public class Plugin : BaseUnityPlugin
     private bool isEnable = false;
     private State state = State.Idle;
 
+    private ConfigEntry<KeyCode> activationKey;
     private ConfigEntry<bool> useMeditation;
     private ConfigEntry<int> minMP;
     private ConfigEntry<int> minHP;
     private ConfigEntry<bool> handleTraps;
-    private ConfigEntry<KeyCode> activationKey;
     private ConfigEntry<bool> handleFighting;
+    private ConfigEntry<bool> handleHarvestables;
+    private ConfigEntry<bool> handleMineables;
+
 
     private void Awake()
     {
@@ -31,6 +34,9 @@ public class Plugin : BaseUnityPlugin
         this.handleTraps = this.Config.Bind("Toggles", "HandleTraps", true, "Should autoexplore disarm traps?");
         this.useMeditation = this.Config.Bind("Toggles", "UseMeditation", true, "Should autoexplore meditate for HP/MP regen?");
         this.handleFighting = this.Config.Bind("Toggles", "HandleFighting", true, "Should autoexplore fight enemies?");
+        this.handleHarvestables = this.Config.Bind("Toggles", "HandleHarvestables", false, "Should autoexplore harvest?");
+        this.handleMineables = this.Config.Bind("Toggles", "HandleMineables", false, "Should autoexplore mine?");
+
         this.minMP = this.Config.Bind("Regen", "minMP", 90, "Percentage of MP to start meditation.");
         this.minHP = this.Config.Bind("Regen", "minHP", 100, "Percentage of HP to start meditation.");
     }
@@ -42,7 +48,7 @@ public class Plugin : BaseUnityPlugin
 
     public void Update()
     {
-        if (Input.GetKeyDown(this.activationKey.Value))
+        if (Input.GetKeyDown(this.activationKey.Value) && !EInput.isInputFieldActive)
         {
             this.Logger.LogInfo("L key pressed");
             if (this.isEnable)
@@ -67,6 +73,14 @@ public class Plugin : BaseUnityPlugin
                 || this.playerCharacter.isDead)
         {
             this.isEnable = false;
+            return;
+        }
+
+        if (this.InventoryIsFull())
+        {
+            this.Logger.LogWarning("Inventory is full. Stopping autoExplore.");
+            this.isEnable = false;
+            Msg.Say("returnOverweight");
             return;
         }
 
@@ -132,6 +146,7 @@ public class Plugin : BaseUnityPlugin
                 var actions = this.FindPotentialActions();
                 if (actions.Any()) { this.HandleActions(actions); break; }
                 this.Logger.LogMessage("Nothing to do.");
+                Msg.Say("noTargetFound");
                 this.isEnable = false;
                 break;
             default:
@@ -145,10 +160,12 @@ public class Plugin : BaseUnityPlugin
         var unexplored = this.FindUnexploredPoints();
         var loot = this.FindLoot();
         var harvestables = this.FindHarvestables();
+        var mineables = this.FindMineables();
         var actions = unexplored.Concat(loot)
-                               .Concat(harvestables)
-                               .OrderBy(p => this.currentPos.RealDistance(p.GetDestinationPoint()))
-                               .ToList();
+                                .Concat(harvestables)
+                                .Concat(mineables)
+                                .OrderBy(p => this.currentPos.RealDistance(p.GetDestinationPoint()))
+                                .ToList();
         //this.Logger.LogInfo($"Found {actions.Count} potential actions.");
         return actions;
     }
@@ -227,6 +244,7 @@ public class Plugin : BaseUnityPlugin
     {
         var map = ELayer._map;
         var tasks = new List<AIAct>();
+        if (!this.handleHarvestables.Value) return tasks;
         map.ForeachPoint(point =>
         {
             //this.Logger.LogInfo("Checking point " + point);
@@ -234,8 +252,31 @@ public class Plugin : BaseUnityPlugin
             var task = TaskHarvest.TryGetAct(ELayer.pc, point);
             if (task != null)
             {
-                tasks.Add(task);
+                task.SetTarget(this.playerCharacter);
+                if (!task.IsTooHard)
+                    tasks.Add(task);
                 //this.Logger.LogInfo(task.ToString() + " " + task.target + task.TargetType);
+            }
+        });
+        return tasks;
+    }
+
+    private List<AIAct> FindMineables()
+    {
+        var map = ELayer._map;
+        var tasks = new List<AIAct>();
+        if (!this.handleMineables.Value) return tasks;
+        map.ForeachPoint(point =>
+        {
+            if (!this.IsPointReachable(point, 1)) return;
+            var canMine = TaskMine.CanMine(point, this.playerCharacter.Tool);
+            if (canMine)
+            {
+                var task = new TaskMine() { pos = point.Copy() };
+                task.SetTarget(this.playerCharacter);
+                if (!task.IsTooHard)
+                    tasks.Add(task);
+                //this.Logger.LogInfo($"{task.ToString()} {task.GetDestinationPoint()} {task.IsTooHard}(lvl{task.reqLv})");
             }
         });
         return tasks;
@@ -249,7 +290,12 @@ public class Plugin : BaseUnityPlugin
             || this.playerCharacter.stamina.value <= 0
             ;
     }
-     
+
+    private bool InventoryIsFull()
+    {
+        return this.playerCharacter.burden.GetPhase() == 3;
+    }
+
     public bool IsPointReachable(Point point, int distance = 0)
     {
         var path = new PathProgress();

@@ -6,7 +6,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>$(ModName)</AssemblyName>
     <Description>Elin autoexplore mod</Description>
-    <Version>1.0.1</Version>
+    <Version>1.1.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
