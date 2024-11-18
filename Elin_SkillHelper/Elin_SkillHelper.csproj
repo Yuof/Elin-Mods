@@ -51,7 +51,7 @@
       <HintPath>$(ManagedPath)/Plugins.UI.dll</HintPath>
     </Reference>
     <Reference Include="TSBase">
-      <HintPath>..\..\..\Games\Steam\steamapps\workshop\content\2135150\3362057334\TSBase.dll</HintPath>
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\workshop\content\2135150\3362057334\TSBase.dll</HintPath>
     </Reference>
   </ItemGroup>
 

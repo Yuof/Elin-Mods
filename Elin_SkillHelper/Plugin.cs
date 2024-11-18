@@ -21,6 +21,7 @@ public class Plugin : BaseUnityPlugin
 
     public void Update()
     {
+        if (EInput.isInputFieldActive) return;
         if (Input.GetKeyDown(KeyCode.O))
         {
             this.Logger.LogInfo("O key pressed");
@@ -35,6 +36,14 @@ public class Plugin : BaseUnityPlugin
             this.WieldShears();
             var chara = shearables.First();
             ELayer.pc.SetAIImmediate(new AI_Shear { target = chara });
+        }
+        if (Input.GetKeyDown(KeyCode.P))
+        {
+            this.Logger.LogInfo("P key pressed");
+            var bestPoint = this.FindBestLocationForPerformance();
+            var ai = new AI_Goto(bestPoint, 0);
+            this.Logger.LogInfo("bestPoint: " + bestPoint);
+            ELayer.pc.SetAIImmediate(ai);
         }
     }
 
@@ -56,6 +65,31 @@ public class Plugin : BaseUnityPlugin
         if (shears != null) {
             ELayer.player.EquipTool(shears);
         }
+    }
+
+    private Point FindBestLocationForPerformance()
+    {
+        var map = ELayer._map;
+        var bestPoint = map.GetCenterPos();
+        double bestScore = 0;
+        map.ForeachPoint(point =>
+        {
+            var charas = point.ListWitnesses(ELayer.pc, 4, WitnessType.music);
+            charas = charas
+                .Where(chara => chara.interest > 0)
+                .Where(chara => !(EClass._zone is Zone_Music && (chara.IsPCFaction || chara.IsPCFactionMinion)))
+                .ToList();
+            if (!charas.Any())
+                return;
+            var score = charas.Average(chara => chara.LV) * charas.Count;
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestPoint = point.Copy();
+                this.Logger.LogInfo($"BestScore: {bestScore}, BestPoint: {bestPoint}");
+            }
+        });
+        return bestPoint;
     }
 
 
