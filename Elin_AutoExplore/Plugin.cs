@@ -17,6 +17,8 @@ public class Plugin : BaseUnityPlugin
     private State state = State.Idle;
 
     private ConfigEntry<KeyCode> activationKey;
+    private ConfigEntry<KeyCode> goDownKey;
+    private ConfigEntry<KeyCode> goUpKey;
     private ConfigEntry<bool> useMeditation;
     private ConfigEntry<int> minMP;
     private ConfigEntry<int> minHP;
@@ -31,6 +33,8 @@ public class Plugin : BaseUnityPlugin
         var harmony = new Harmony("yuof.elin.autoExplore.mod");
         harmony.PatchAll();
         this.activationKey = this.Config.Bind("General", "ActivationKey", KeyCode.L, "Key to start and stop autoexplore.");
+        this.goDownKey = this.Config.Bind("General", "GoDownKey", KeyCode.Comma, "Key to move to stairs down.");
+        this.goUpKey = this.Config.Bind("General", "GoUpKey", KeyCode.Period, "Key to move to stairs up.");
         this.handleTraps = this.Config.Bind("Toggles", "HandleTraps", true, "Should autoexplore disarm traps?");
         this.useMeditation = this.Config.Bind("Toggles", "UseMeditation", true, "Should autoexplore meditate for HP/MP regen?");
         this.handleFighting = this.Config.Bind("Toggles", "HandleFighting", true, "Should autoexplore fight enemies?");
@@ -48,22 +52,7 @@ public class Plugin : BaseUnityPlugin
 
     public void Update()
     {
-        if (Input.GetKeyDown(this.activationKey.Value) && !EInput.isInputFieldActive)
-        {
-            this.Logger.LogInfo("L key pressed");
-            if (this.isEnable)
-            {
-                this.isEnable = false;
-                this.state = State.Starting;
-                this.Logger.LogInfo("Auto explore disabled.");
-            }
-            else
-            {
-                this.isEnable = true;
-                this.state = State.Starting;
-                this.Logger.LogInfo("Auto explore enabled.");
-            }
-        }
+        HandleInput();
 
         if (!this.isEnable) return;
 
@@ -155,6 +144,52 @@ public class Plugin : BaseUnityPlugin
         //this.Logger.LogInfo("Current State is " + this.state);
     }
 
+    private void HandleInput()
+    {
+        if (EInput.isInputFieldActive) return;
+
+        if (Input.GetKeyDown(this.activationKey.Value))
+        {
+            this.Logger.LogInfo("L key pressed");
+            if (this.isEnable)
+            {
+                this.isEnable = false;
+                this.state = State.Starting;
+                this.Logger.LogInfo("Auto explore disabled.");
+            }
+            else
+            {
+                this.isEnable = true;
+                this.state = State.Starting;
+                this.Logger.LogInfo("Auto explore enabled.");
+            }
+        }
+
+        if (Input.GetKeyDown(this.goDownKey.Value))
+        {
+            this.Logger.LogInfo("Go down key pressed");
+            var stairs = this.FindStairs();
+            if (stairs != null)
+            {
+                this.playerCharacter.SetAIImmediate(stairs);
+                this.state = State.Exploring;
+
+            }
+        }
+        if (Input.GetKeyDown(this.goUpKey.Value))
+        {
+            this.Logger.LogInfo("Go up key pressed");
+            var stairs = this.FindStairs(false);
+            if (stairs != null)
+            {
+                this.playerCharacter.SetAIImmediate(stairs);
+                this.state = State.Exploring;
+            }
+        }
+
+        //this.Logger.LogInfo("Current key: " + Input.inputString);
+    }
+
     private List<AIAct> FindPotentialActions()
     {
         var unexplored = this.FindUnexploredPoints();
@@ -184,7 +219,7 @@ public class Plugin : BaseUnityPlugin
             }
         });
 
-        //Logger.LogInfo($"Found {points.Count} hidden points.");
+        //Logger.LogInfo($"Found {tasks.Count} hidden points.");
         return tasks;
     }
 
@@ -210,7 +245,7 @@ public class Plugin : BaseUnityPlugin
             }
         });
 
-        //this.Logger.LogInfo($"Found {points.Count} loot points.");
+        //this.Logger.LogInfo($"Found {tasks.Count} loot points.");
         return tasks;
     }
 
@@ -248,16 +283,20 @@ public class Plugin : BaseUnityPlugin
         map.ForeachPoint(point =>
         {
             //this.Logger.LogInfo("Checking point " + point);
-            if (!this.IsPointReachable(point, 1)) return;
+            if (!point.IsInBounds || (!point.HasObj && !point.HasThing))
+                return;
             var task = TaskHarvest.TryGetAct(ELayer.pc, point);
             if (task != null)
             {
+                if (!this.IsPointReachable(point, 1))
+                    return;
                 task.SetTarget(this.playerCharacter);
                 if (!task.IsTooHard)
                     tasks.Add(task);
-                //this.Logger.LogInfo(task.ToString() + " " + task.target + task.TargetType);
+                //this.Logger.LogInfo(task.ToString() + " " + task.target + task.TargetType + task.IsTooHard);
             }
         });
+        //this.Logger.LogInfo($"Found {tasks.Count} harvestables.");
         return tasks;
     }
 
@@ -268,18 +307,46 @@ public class Plugin : BaseUnityPlugin
         if (!this.handleMineables.Value) return tasks;
         map.ForeachPoint(point =>
         {
-            if (!this.IsPointReachable(point, 1)) return;
+            if (!point.IsInBounds)
+                return;
             var canMine = TaskMine.CanMine(point, this.playerCharacter.Tool);
             if (canMine)
             {
+                // this.Logger.LogInfo($"Can mine {point}");
+                if (!this.IsPointReachable(point, 1))
+                    return;
                 var task = new TaskMine() { pos = point.Copy() };
                 task.SetTarget(this.playerCharacter);
                 if (!task.IsTooHard)
                     tasks.Add(task);
-                //this.Logger.LogInfo($"{task.ToString()} {task.GetDestinationPoint()} {task.IsTooHard}(lvl{task.reqLv})");
+                // this.Logger.LogInfo($"{task.ToString()} {task.GetDestinationPoint()} {task.IsTooHard}(lvl{task.reqLv})");
             }
         });
+        //this.Logger.LogInfo($"Found {tasks.Count} mineables.");
         return tasks;
+    }
+
+    private AIAct? FindStairs(bool down = true)
+    {
+        var map = ELayer._map;
+        AIAct? action = null;
+        map.ForeachPoint(point =>
+        {
+            if (!point.IsHidden && !point.IsBlocked && point.HasThing && this.IsPointReachable(point))
+            {
+                var things = point.Things;
+                foreach (var thing in things)
+                {
+                    if (thing.GetRootCard().placeState == PlaceState.installed && thing.trait is TraitStairs)
+                    {
+                        var traitStairs = thing.trait as TraitStairs;
+                        if (traitStairs?.IsDownstairs == down)
+                            action = new AI_Goto(point, 0);
+                    }
+                }
+            }
+        });
+        return action;
     }
 
     private bool ShouldRest()
