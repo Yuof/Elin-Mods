@@ -33,7 +33,7 @@ public class Plugin : BaseUnityPlugin
 
     public void Update()
     {
-        HandleInput();
+        this.HandleInput();
 
         if (!this.isEnable) return;
 
@@ -128,6 +128,13 @@ public class Plugin : BaseUnityPlugin
     private void HandleInput()
     {
         if (EInput.isInputFieldActive) return;
+
+        if (this.config.ToggleHarvestingAndMiningMode.Value.IsDown())
+        {
+            this.Logger.LogInfo("Toggle Harvesting and Mining mode key pressed");
+            this.config.SetNextMode();
+            return;
+        }
 
         if (Input.GetKeyDown(this.config.ActivationKey.Value))
         {

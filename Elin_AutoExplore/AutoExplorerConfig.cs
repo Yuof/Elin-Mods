@@ -11,6 +11,7 @@ namespace Elin_AutoExplore
         public AutoExplorerConfig(ConfigFile config)
         {
             this.ActivationKey = config.Bind("General", "ActivationKey", KeyCode.L, "Key to start and stop autoexplore.");
+            this.ToggleHarvestingAndMiningMode = config.Bind("General", "ToggleHarvestingAndMiningMode", new KeyboardShortcut(KeyCode.L, KeyCode.LeftShift), "Key to toggle between just exploring, harvesting and mining mode.");
             this.GoDownKey = config.Bind("General", "GoDownKey", KeyCode.Comma, "Key to move to stairs down.");
             this.GoUpKey = config.Bind("General", "GoUpKey", KeyCode.Period, "Key to move to stairs up.");
             this.HandleTraps = config.Bind("Toggles", "HandleTraps", true, "Should autoexplore disarm traps?");
@@ -24,6 +25,7 @@ namespace Elin_AutoExplore
         }
 
         public ConfigEntry<KeyCode> ActivationKey { get; set; }
+        public ConfigEntry<KeyboardShortcut> ToggleHarvestingAndMiningMode { get; set; }
         public ConfigEntry<KeyCode> GoDownKey { get; set; }
         public ConfigEntry<KeyCode> GoUpKey { get; set; }
         public ConfigEntry<KeyboardShortcut> MenuKey { get; set; }
@@ -34,5 +36,81 @@ namespace Elin_AutoExplore
         public ConfigEntry<bool> HandleFighting { get; set; }
         public ConfigEntry<bool> HandleHarvestables { get; set; }
         public ConfigEntry<bool> HandleMineables { get; set; }
+
+        private Mode GetMode()
+        {
+            if (this.HandleHarvestables.Value && this.HandleMineables.Value)
+            {
+                return Mode.HarvestAndMine;
+            }
+            else if (this.HandleHarvestables.Value)
+            {
+                return Mode.Harvest;
+            }
+            else if (this.HandleMineables.Value)
+            {
+                return Mode.Mine;
+            }
+            else
+            {
+                return Mode.Explore;
+            }
+        }
+
+        public void SetNextMode()
+        {
+            switch (this.GetMode())
+            {
+                case Mode.Explore:
+                    this.SetMode(Mode.Harvest);
+                    ELayer.pc.TalkRaw("Harvesting mode");
+                    break;
+                case Mode.Harvest:
+                    this.SetMode(Mode.Mine);
+                    ELayer.pc.TalkRaw("Mining mode");
+                    break;
+                case Mode.Mine:
+                    this.SetMode(Mode.HarvestAndMine);
+                    ELayer.pc.TalkRaw("Harvesting and mining mode");
+                    break;
+                case Mode.HarvestAndMine:
+                    this.SetMode(Mode.Explore);
+                    ELayer.pc.TalkRaw("Exploring mode");
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+        }
+
+        private void SetMode(Mode mode)
+        {
+            switch (mode)
+            {
+                case Mode.Explore:
+                    this.HandleHarvestables.Value = false;
+                    this.HandleMineables.Value = false;
+                    break;
+                case Mode.Harvest:
+                    this.HandleHarvestables.Value = true;
+                    this.HandleMineables.Value = false;
+                    break;
+                case Mode.Mine:
+                    this.HandleHarvestables.Value = false;
+                    this.HandleMineables.Value = true;
+                    break;
+                case Mode.HarvestAndMine:
+                    this.HandleHarvestables.Value = true;
+                    this.HandleMineables.Value = true;
+                    break;
+            }
+        }
+
+        public enum Mode
+        {
+            Explore,
+            Harvest,
+            Mine,
+            HarvestAndMine,
+        }
     }
 }
