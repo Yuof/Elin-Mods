@@ -66,6 +66,7 @@
 
     <!-- Copy the compiled DLL to the mod folder -->
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModFolder)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="package.xml" DestinationFolder="$(ModFolder)" SkipUnchangedFiles="true" />
 
     <!-- Optional: You can add a message to confirm the copy -->
     <Message Text="Copied $(TargetFileName) to $(ModFolder)" Importance="high" />
