@@ -1,5 +1,4 @@
 ﻿using BepInEx;
-using BepInEx.Configuration;
 using HarmonyLib;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,33 +15,15 @@ public class Plugin : BaseUnityPlugin
     private bool isEnable = false;
     private State state = State.Idle;
 
-    private ConfigEntry<KeyCode> activationKey;
-    private ConfigEntry<KeyCode> goDownKey;
-    private ConfigEntry<KeyCode> goUpKey;
-    private ConfigEntry<bool> useMeditation;
-    private ConfigEntry<int> minMP;
-    private ConfigEntry<int> minHP;
-    private ConfigEntry<bool> handleTraps;
-    private ConfigEntry<bool> handleFighting;
-    private ConfigEntry<bool> handleHarvestables;
-    private ConfigEntry<bool> handleMineables;
+    private AutoExplorerConfig config;
+
 
 
     private void Awake()
     {
         var harmony = new Harmony("yuof.elin.autoExplore.mod");
         harmony.PatchAll();
-        this.activationKey = this.Config.Bind("General", "ActivationKey", KeyCode.L, "Key to start and stop autoexplore.");
-        this.goDownKey = this.Config.Bind("General", "GoDownKey", KeyCode.Comma, "Key to move to stairs down.");
-        this.goUpKey = this.Config.Bind("General", "GoUpKey", KeyCode.Period, "Key to move to stairs up.");
-        this.handleTraps = this.Config.Bind("Toggles", "HandleTraps", true, "Should autoexplore disarm traps?");
-        this.useMeditation = this.Config.Bind("Toggles", "UseMeditation", true, "Should autoexplore meditate for HP/MP regen?");
-        this.handleFighting = this.Config.Bind("Toggles", "HandleFighting", true, "Should autoexplore fight enemies?");
-        this.handleHarvestables = this.Config.Bind("Toggles", "HandleHarvestables", false, "Should autoexplore harvest?");
-        this.handleMineables = this.Config.Bind("Toggles", "HandleMineables", false, "Should autoexplore mine?");
-
-        this.minMP = this.Config.Bind("Regen", "minMP", 90, "Percentage of MP to start meditation.");
-        this.minHP = this.Config.Bind("Regen", "minHP", 100, "Percentage of HP to start meditation.");
+        this.config = new AutoExplorerConfig(this.Config);
     }
     private void Unload()
     {
@@ -113,9 +94,9 @@ public class Plugin : BaseUnityPlugin
         }
 
         var enemies = this.FindVisibleEnemies();
-        var shouldRest = this.useMeditation.Value && this.ShouldRest();
+        var shouldRest = this.config.UseMeditation.Value && this.ShouldRest();
 
-        var trap = this.handleTraps.Value ? this.FindTrap() : null;
+        var trap = this.config.HandleTraps.Value ? this.FindTrap() : null;
 
         switch (this.state)
         {
@@ -148,7 +129,7 @@ public class Plugin : BaseUnityPlugin
     {
         if (EInput.isInputFieldActive) return;
 
-        if (Input.GetKeyDown(this.activationKey.Value))
+        if (Input.GetKeyDown(this.config.ActivationKey.Value))
         {
             this.Logger.LogInfo("L key pressed");
             if (this.isEnable)
@@ -165,7 +146,7 @@ public class Plugin : BaseUnityPlugin
             }
         }
 
-        if (Input.GetKeyDown(this.goDownKey.Value))
+        if (Input.GetKeyDown(this.config.GoDownKey.Value))
         {
             this.Logger.LogInfo("Go down key pressed");
             var stairs = this.FindStairs();
@@ -176,7 +157,7 @@ public class Plugin : BaseUnityPlugin
 
             }
         }
-        if (Input.GetKeyDown(this.goUpKey.Value))
+        if (Input.GetKeyDown(this.config.GoUpKey.Value))
         {
             this.Logger.LogInfo("Go up key pressed");
             var stairs = this.FindStairs(false);
@@ -279,7 +260,7 @@ public class Plugin : BaseUnityPlugin
     {
         var map = ELayer._map;
         var tasks = new List<AIAct>();
-        if (!this.handleHarvestables.Value) return tasks;
+        if (!this.config.HandleHarvestables.Value) return tasks;
         map.ForeachPoint(point =>
         {
             //this.Logger.LogInfo("Checking point " + point);
@@ -304,7 +285,7 @@ public class Plugin : BaseUnityPlugin
     {
         var map = ELayer._map;
         var tasks = new List<AIAct>();
-        if (!this.handleMineables.Value) return tasks;
+        if (!this.config.HandleMineables.Value) return tasks;
         map.ForeachPoint(point =>
         {
             if (!point.IsInBounds)
@@ -352,8 +333,8 @@ public class Plugin : BaseUnityPlugin
     private bool ShouldRest()
     {
         return
-               this.playerCharacter.hp * 100 < this.playerCharacter.MaxHP * this.minHP.Value
-            || this.playerCharacter.mana.value * 100 < this.playerCharacter.mana.max * this.minMP.Value
+               this.playerCharacter.hp * 100 < this.playerCharacter.MaxHP * this.config.MinHP.Value
+            || this.playerCharacter.mana.value * 100 < this.playerCharacter.mana.max * this.config.MinMP.Value
             || this.playerCharacter.stamina.value <= 0
             ;
     }
@@ -373,7 +354,7 @@ public class Plugin : BaseUnityPlugin
 
     private void HandleCombat(List<Chara> enemies)
     {
-        if (this.handleFighting.Value == false)
+        if (this.config.HandleFighting.Value == false)
         {
             this.state = State.Finished;
             this.isEnable = false;
