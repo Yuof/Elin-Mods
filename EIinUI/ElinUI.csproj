@@ -1,11 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <!-- Edit this!-->
-    <ModName>Elin_UI</ModName>
+    <ModName>Elin_UIExtensions</ModName>
 
     <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>$(ModName)</AssemblyName>
-    <Description>My first plugin</Description>
+    <Description>Elin_UIExtension</Description>
     <Version>1.0.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
@@ -49,6 +49,9 @@
     <Reference Include="Plugins.UI">
       <HintPath>$(ManagedPath)/Plugins.UI.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(ManagedPath)/UnityEngine.UI.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
@@ -65,6 +68,7 @@
     
     <!-- Copy the compiled DLL to the mod folder -->
     <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(ModFolder)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="package.xml" DestinationFolder="$(ModFolder)" SkipUnchangedFiles="true" />
     
     <!-- Optional: You can add a message to confirm the copy -->
     <Message Text="Copied $(TargetFileName) to $(ModFolder)" Importance="high" />

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Meta>
+	<title>Elin_UIExtensions</title>
+	<id>yuof.elin.uiExtensions</id>
+	<author>Yuof</author>
+	<loadPriority>100</loadPriority>
+	<description>
+[h1]QoL UI Extensions Mod[/h1]
+
+[i]Improve your user interface with these quality-of-life features:[/i]
+
+[list]
+[*][b]Manabar in Party Window:[/b] Adds a mana bar to the party UI.  
+[*][b]Item Value in Tooltips:[/b] Displays item value directly in tooltips.  
+[*][b]Tourism Value Added:[/b] Shows tourism value for relevant items.  
+[/list]
+
+	</description>
+	<version>0.22.1</version>
+</Meta>

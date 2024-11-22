@@ -1,15 +1,19 @@
 ﻿using BepInEx;
+using BepInEx.Logging;
 using HarmonyLib;
 using UnityEngine;
 
-namespace ExampleMod;
+namespace Elin_UIExtensions;
 
-[BepInPlugin("yuof.elin.uiExtension.mod", "Elin UI Extension", "1.0.0.0")]
+[BepInPlugin("yuof.elin.uiExtensions.mod", "Elin UI Extensions", "1.0.0.0")]
 public class Plugin : BaseUnityPlugin
 {
+    internal static new ManualLogSource Log;
+
     private void Start()
     {
-        var harmony = new Harmony("yuof.elin.uiExtension.mod");
+        Log = Logger;
+        var harmony = new Harmony("yuof.elin.uiExtensions.mod");
         harmony.PatchAll();
     }
 }

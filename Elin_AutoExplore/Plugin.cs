@@ -223,7 +223,7 @@ public class Plugin : BaseUnityPlugin
                 foreach (var thing in things)
                 {
                     //Logger.LogInfo(thing.ToString() + " | " +thing.GetRootCard().placeState + " | " + this.CanPick(thing));
-                    if (thing.GetRootCard().placeState == PlaceState.roaming && this.CanPick(thing) && !thing.isNPCProperty)
+                    if (thing.GetRootCard().placeState == PlaceState.roaming && this.CanPick(thing))
                     {
                         tasks.Add(new AI_Goto(point, 0));
                         //Logger.LogInfo(thing.ToString() + " | " + thing.GetRootCard().placeState + " | " + this.CanPick(thing)+ " | " + thing.isNPCProperty + " | " + thing.ExistsOnMap);
@@ -439,6 +439,16 @@ public class Plugin : BaseUnityPlugin
         }
 
         if (this.playerCharacter.things.IsFull(thing))
+        {
+            return false;
+        }
+
+        if (thing.isNPCProperty)
+        {
+            return false;
+        }
+
+        if (thing.ignoreAutoPick)
         {
             return false;
         }
