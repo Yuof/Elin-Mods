@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using HarmonyLib;
+using UnityEngine.Yoga;
 
 namespace Elin_UI
 {
@@ -58,6 +59,11 @@ namespace Elin_UI
                 }
             }
 
+            if (__instance.trait.Decay > 0)
+            {
+                n.AddText(CalcDecay(__instance));
+            }
+
             n.Build();
         }
 
@@ -74,6 +80,11 @@ namespace Elin_UI
             }
 
             return num;
+        }
+
+        private static string CalcDecay(Thing thing)
+        {
+            return $"This is {((float)thing.decay / (float)thing.MaxDecay):P0} decayed.";
         }
     }
 }
