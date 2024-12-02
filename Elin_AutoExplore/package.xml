@@ -5,67 +5,68 @@
 	<author>Yuof</author>
 	<loadPriority>100</loadPriority>
 	<description>
-[h1]AutoExplore Mod[/h1]
+		[h1]AutoExplore Mod[/h1]
 
-[b]Press [i]L[/i] to automatically explore the current map.[/b]
+		[b]Press [i]L[/i] to automatically explore the current map.[/b]
 
-This mod includes the following features:
-[list]
-[*][b]Auto-fight[/b]
-[*][b]Auto-trap handling[/b]
-[*][b]Auto-loot collection[/b]
-[*][b]Auto-harvesting[/b]
-[*][b]Auto-mining[/b]
-[/list]
+		This mod includes the following features:
+		[list]
+		[*][b]Auto-fight[/b]
+		[*][b]Auto-trap handling[/b]
+		[*][b]Auto-loot collection[/b]
+		[*][b]Auto-harvesting[/b]
+		[*][b]Auto-mining[/b]
+		[/list]
 
-[h2]Controls[/h2]
-[list]
-[*]Press [i]L + LeftShift[/i] to toggle between modes:
-    [olist]
-    [*]Explore
-    [*]Gather
-    [*]Mine
-    [*]Combined
-    [/olist]
-[*]Keybinds available for moving up or down stairs.
-[/list]
+		[h2]Controls[/h2]
+		[list]
+		[*]Press [i]L + LeftShift[/i] to toggle between modes:
+		[olist]
+		[*]Explore
+		[*]Gather
+		[*]Mine
+		[*]Combined
+		[/olist]
+		[*]Keybinds available for moving up or down stairs.
+		[/list]
 
-[h2]Priority System[/h2]
-[i]Tasks are completed in the following order:[/i]
-[olist]
-[*]Fight visible enemies
-[*]Disarm visible traps
-[*]Explore and loot
-[/olist]
+		[h2]Priority System[/h2]
+		[i]Tasks are completed in the following order:[/i]
+		[olist]
+		[*]Fight visible enemies
+		[*]Disarm visible traps
+		[*]Explore and loot
+		[/olist]
 
-[h2]Configuration[/h2]
-Config file: [code]Elin\BepInEx\config\yuof.elin.autoExplore.mod.cfg[/code]
-Customizable settings include:
-[list]
-[*]Enable/disable fighting
-[*]Enable/disable trap handling
-[*]Enable/disable meditating
-[*]Enable/disable harvesting
-[*]Enable/disable mining
-[*]Set meditation thresholds
-[*]Set stamina thresholds
-[*]Customize keybinds
-[/list]
+		[h2]Configuration[/h2]
+		[i]Includes an in-game configuration menu. (Press the middle button on your character to open the config.)[/i]
+		Config file: [code]Elin\BepInEx\config\yuof.elin.autoExplore.mod.cfg[/code]
+		Customizable settings include:
+		[list]
+		[*]Enable/disable fighting
+		[*]Enable/disable trap handling
+		[*]Enable/disable meditating
+		[*]Enable/disable harvesting
+		[*]Enable/disable mining
+		[*]Set meditation thresholds
+		[*]Set stamina thresholds
+		[*]Customize keybinds
+		[/list]
 
-[h2]Tips[/h2]
-[list]
-[*]Set up your in-game auto-fight settings (found in the last tab of the character window).
-[*]Adjust the auto-stop setting to avoid running past enemies ([i]check screenshot for guidance[/i]).
-[*]Equip appropriate tools such as an axe or pickaxe for harvesting and mining.
-[/list]
+		[h2]Tips[/h2]
+		[list]
+		[*]Set up your in-game auto-fight settings (found in the last tab of the character window).
+		[*]Adjust the auto-stop setting to avoid running past enemies ([i]check screenshot for guidance[/i]).
+		[*]Equip appropriate tools such as an axe or pickaxe for harvesting and mining.
+		[/list]
 
-[h2]Notes[/h2]
-[list]
-[*]The mod won't explore unreachable rooms.
-[*]If you are too tired to meditate, the mod will use a carried bed to prevent falling asleep.
-[*]I am looking for ways to add an in-game way to exclude specific items/objects from being gathered. Figuring out a how to do UI is not easy.
-[/list]
+		[h2]Notes[/h2]
+		[list]
+		[*]The mod won't explore unreachable rooms.
+		[*]If you are too tired to meditate, the mod will use a carried bed to prevent falling asleep.
+		[*]I am looking for ways to add an in-game way to exclude specific items/objects from being gathered. Figuring out a how to do UI is not easy.
+		[/list]
 
 	</description>
-	<version>0.23.31</version>
+	<version>0.23.46</version>
 </Meta>

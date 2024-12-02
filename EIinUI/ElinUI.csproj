@@ -25,6 +25,9 @@
     <ManagedPath>$(GamePath)/Elin_Data/Managed</ManagedPath>
     <BepInExPath>$(GamePath)/BepInEx</BepInExPath>
   </PropertyGroup>
+  <ItemGroup>
+    <None Remove="Tooltip.cs~RF440e9e10.TMP" />
+  </ItemGroup>
 
   <ItemGroup>
     <Reference Include="Assembly-CSharp">

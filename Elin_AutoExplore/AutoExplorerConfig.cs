@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Elin_AutoExplore
 {
-    internal class AutoExplorerConfig
+    public class AutoExplorerConfig
     {
         public AutoExplorerConfig(ConfigFile config)
         {
@@ -63,19 +63,19 @@ namespace Elin_AutoExplore
             {
                 case Mode.Explore:
                     this.SetMode(Mode.Harvest);
-                    ELayer.pc.TalkRaw("Harvesting mode");
+                    ELayer.pc.TalkRaw(Translations.GetTranslation(Translations.HarvestingMode));
                     break;
                 case Mode.Harvest:
                     this.SetMode(Mode.Mine);
-                    ELayer.pc.TalkRaw("Mining mode");
+                    ELayer.pc.TalkRaw(Translations.GetTranslation(Translations.MiningMode));
                     break;
                 case Mode.Mine:
                     this.SetMode(Mode.HarvestAndMine);
-                    ELayer.pc.TalkRaw("Harvesting and mining mode");
+                    ELayer.pc.TalkRaw(Translations.GetTranslation(Translations.HarvestingAndMiningMode));
                     break;
                 case Mode.HarvestAndMine:
                     this.SetMode(Mode.Explore);
-                    ELayer.pc.TalkRaw("Exploring mode");
+                    ELayer.pc.TalkRaw(Translations.GetTranslation(Translations.ExploringMode));
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();

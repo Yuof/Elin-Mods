@@ -50,6 +50,9 @@
     <Reference Include="Plugins.UI">
       <HintPath>$(ManagedPath)/Plugins.UI.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>$(ManagedPath)/UnityEngine.UI.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">

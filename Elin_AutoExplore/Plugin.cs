@@ -12,18 +12,23 @@ public class Plugin : BaseUnityPlugin
     private Chara playerCharacter => ELayer.pc;
 
     private Point currentPos => this.playerCharacter.pos;
+    private MapBounds currentBounds => ELayer._map.bounds;
     private bool isEnable = false;
     private State state = State.Idle;
 
-    private AutoExplorerConfig config;
-
+    public AutoExplorerConfig AutoExplorerConfig { get; set; } = null!;
+    public static Plugin Instance { get; private set; } = null!;
 
 
     private void Awake()
     {
         var harmony = new Harmony("yuof.elin.autoExplore.mod");
         harmony.PatchAll();
-        this.config = new AutoExplorerConfig(this.Config);
+        this.AutoExplorerConfig = new AutoExplorerConfig(this.Config);
+
+        //this.Logger.LogInfo("AutoExplorer loaded.");
+        //this.Logger.LogInfo(harmony.GetPatchedMethods().Select(@base => @base.Name.ToString()).Join());
+        Instance = this;
     }
     private void Unload()
     {
@@ -51,6 +56,14 @@ public class Plugin : BaseUnityPlugin
             this.Logger.LogWarning("Inventory is full. Stopping autoExplore.");
             this.isEnable = false;
             Msg.Say("returnOverweight");
+            return;
+        }
+
+        if (this.Drowning())
+        {
+            this.Logger.LogWarning("Drowning. Stopping autoExplore.");
+            this.isEnable = false;
+            Msg.Say("regionAbortMove");
             return;
         }
 
@@ -94,9 +107,9 @@ public class Plugin : BaseUnityPlugin
         }
 
         var enemies = this.FindVisibleEnemies();
-        var shouldRest = this.config.UseMeditation.Value && this.ShouldRest();
+        var shouldRest = this.AutoExplorerConfig.UseMeditation.Value && this.ShouldRest();
 
-        var trap = this.config.HandleTraps.Value ? this.FindTrap() : null;
+        var trap = this.AutoExplorerConfig.HandleTraps.Value ? this.FindTrap() : null;
 
         switch (this.state)
         {
@@ -129,14 +142,14 @@ public class Plugin : BaseUnityPlugin
     {
         if (EInput.isInputFieldActive) return;
 
-        if (this.config.ToggleHarvestingAndMiningMode.Value.IsDown())
+        if (this.AutoExplorerConfig.ToggleHarvestingAndMiningMode.Value.IsDown())
         {
             this.Logger.LogInfo("Toggle Harvesting and Mining mode key pressed");
-            this.config.SetNextMode();
+            this.AutoExplorerConfig.SetNextMode();
             return;
         }
 
-        if (Input.GetKeyDown(this.config.ActivationKey.Value))
+        if (Input.GetKeyDown(this.AutoExplorerConfig.ActivationKey.Value))
         {
             this.Logger.LogInfo("L key pressed");
             if (this.isEnable)
@@ -153,7 +166,7 @@ public class Plugin : BaseUnityPlugin
             }
         }
 
-        if (Input.GetKeyDown(this.config.GoDownKey.Value))
+        if (Input.GetKeyDown(this.AutoExplorerConfig.GoDownKey.Value))
         {
             this.Logger.LogInfo("Go down key pressed");
             var stairs = this.FindStairs();
@@ -164,7 +177,7 @@ public class Plugin : BaseUnityPlugin
 
             }
         }
-        if (Input.GetKeyDown(this.config.GoUpKey.Value))
+        if (Input.GetKeyDown(this.AutoExplorerConfig.GoUpKey.Value))
         {
             this.Logger.LogInfo("Go up key pressed");
             var stairs = this.FindStairs(false);
@@ -195,11 +208,8 @@ public class Plugin : BaseUnityPlugin
 
     private List<AIAct> FindUnexploredPoints()
     {
-        var map = ELayer._map;
-
-        var cells = map.cells;
         var tasks = new List<AIAct>();
-        map.ForeachPoint(point =>
+        this.currentBounds.ForeachPoint(point =>
         {
             if (!point.IsSeen && !point.IsBlocked && this.IsPointReachable(point))
             {
@@ -213,9 +223,8 @@ public class Plugin : BaseUnityPlugin
 
     private List<AIAct> FindLoot()
     {
-        var map = ELayer._map;
         var tasks = new List<AIAct>();
-        map.ForeachPoint(point =>
+        this.currentBounds.ForeachPoint(point =>
         {
             if (!point.IsHidden && !point.IsBlocked && point.HasThing && this.IsPointReachable(point))
             {
@@ -239,7 +248,6 @@ public class Plugin : BaseUnityPlugin
 
     private Card? FindTrap()
     {
-        var map = ELayer._map;
         var currentFov = this.playerCharacter.fov.ListPoints();
         currentFov = currentFov.OrderBy(p => p.Distance(this.currentPos)).ToList();
         foreach (var point in currentFov)
@@ -265,10 +273,9 @@ public class Plugin : BaseUnityPlugin
 
     private List<AIAct> FindHarvestables()
     {
-        var map = ELayer._map;
         var tasks = new List<AIAct>();
-        if (!this.config.HandleHarvestables.Value) return tasks;
-        map.ForeachPoint(point =>
+        if (!this.AutoExplorerConfig.HandleHarvestables.Value) return tasks;
+        this.currentBounds.ForeachPoint(point =>
         {
             //this.Logger.LogInfo("Checking point " + point);
             if (!point.IsInBounds || (!point.HasObj && !point.HasThing))
@@ -290,10 +297,9 @@ public class Plugin : BaseUnityPlugin
 
     private List<AIAct> FindMineables()
     {
-        var map = ELayer._map;
         var tasks = new List<AIAct>();
-        if (!this.config.HandleMineables.Value) return tasks;
-        map.ForeachPoint(point =>
+        if (!this.AutoExplorerConfig.HandleMineables.Value) return tasks;
+        this.currentBounds.ForeachPoint(point =>
         {
             if (!point.IsInBounds)
                 return;
@@ -316,9 +322,8 @@ public class Plugin : BaseUnityPlugin
 
     private AIAct? FindStairs(bool down = true)
     {
-        var map = ELayer._map;
         AIAct? action = null;
-        map.ForeachPoint(point =>
+        this.currentBounds.ForeachPoint(point =>
         {
             if (!point.IsHidden && !point.IsBlocked && point.HasThing && this.IsPointReachable(point))
             {
@@ -339,16 +344,25 @@ public class Plugin : BaseUnityPlugin
 
     private bool ShouldRest()
     {
-        return
-               this.playerCharacter.hp * 100 < this.playerCharacter.MaxHP * this.config.MinHP.Value
-            || this.playerCharacter.mana.value * 100 < this.playerCharacter.mana.max * this.config.MinMP.Value
-            || this.playerCharacter.stamina.value <= 0
-            ;
+        return 
+            !this.currentPos.cell.CanSuffocate() 
+               && (
+                   this.playerCharacter.hp * 100 < this.playerCharacter.MaxHP * this.AutoExplorerConfig.MinHP.Value
+                   || this.playerCharacter.mana.value * 100 < this.playerCharacter.mana.max * this.AutoExplorerConfig.MinMP.Value
+                   || this.playerCharacter.stamina.value <= 0
+                   );
     }
 
     private bool InventoryIsFull()
     {
         return this.playerCharacter.burden.GetPhase() == 3;
+    }
+
+    private bool Drowning()
+    {
+        if (!this.playerCharacter.HasCondition<ConSuffocation>())
+            return false;
+        return this.playerCharacter.GetCondition<ConSuffocation>().value >= 100;
     }
 
     public bool IsPointReachable(Point point, int distance = 0)
@@ -361,7 +375,7 @@ public class Plugin : BaseUnityPlugin
 
     private void HandleCombat(List<Chara> enemies)
     {
-        if (this.config.HandleFighting.Value == false)
+        if (this.AutoExplorerConfig.HandleFighting.Value == false)
         {
             this.state = State.Finished;
             this.isEnable = false;
@@ -451,6 +465,45 @@ public class Plugin : BaseUnityPlugin
         if (thing.ignoreAutoPick)
         {
             return false;
+        }
+
+        if (thing.isThing && thing.placeState == PlaceState.roaming && !thing.ignoreAutoPick)
+        {
+            if (EClass.core.config.game.advancedMenu)
+            {
+                var dataPick = EClass.player.dataPick;
+                var containerFlag = thing.category.GetRoot().id.ToEnum<ContainerFlag>(true);
+                if (containerFlag == ContainerFlag.none)
+                {
+                    containerFlag = ContainerFlag.other;
+                }
+
+                if ((!dataPick.noRotten || !thing.IsDecayed) && (!dataPick.onlyRottable || thing.trait.Decay != 0) &&
+                    (!dataPick.userFilter || dataPick.IsFilterPass(thing.GetName(NameStyle.Full, 1))))
+                {
+                    if (dataPick.advDistribution)
+                    {
+                        using (var enumerator4 = dataPick.cats.GetEnumerator())
+                        {
+                            while (enumerator4.MoveNext())
+                            {
+                                var num4 = enumerator4.Current;
+                                if (thing.category.uid == num4)
+                                {
+                                    return true;
+                                }
+                            }
+
+                            return false;
+                        }
+                    }
+
+                    if (!dataPick.flag.HasFlag(containerFlag))
+                    {
+                        return true;
+                    }
+                }
+            }
         }
 
         return true;
