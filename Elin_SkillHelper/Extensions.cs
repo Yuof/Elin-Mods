@@ -6,6 +6,10 @@ public static class Extensions
         {
             return taskPoint.pos;
         }
+        else if (act is AI_TargetThing thing)
+        {
+            return thing.target.pos;
+        }
         else
         {
             return act.GetDestination();

@@ -1,11 +1,9 @@
 ﻿using BepInEx;
 using BepInEx.Configuration;
-using Elin_SkillHelper;
 using HarmonyLib;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using TSBase;
 using UnityEngine;
 
 namespace ExampleMod;
@@ -39,6 +37,13 @@ public class Plugin : BaseUnityPlugin
             return;
         }
 
+        if (this.mode != SkillHelperMode.None && this.ShouldStop())
+        {
+            ELayer.pc.TalkRaw("Low Stamina");
+            this.mode = SkillHelperMode.None;
+            return;
+        }
+
         if (Input.GetKeyDown(KeyCode.O))
         {
             this.Logger.LogInfo("O key pressed");
@@ -55,6 +60,11 @@ public class Plugin : BaseUnityPlugin
             this.Logger.LogInfo("K key pressed");
             this.mode = SkillHelperMode.Water;
         }
+        if (Input.GetKeyDown(KeyCode.U))
+        {
+            this.Logger.LogInfo("U key pressed");
+            this.mode = SkillHelperMode.Lockpick;
+        }
 
         switch (this.mode)
         {
@@ -66,6 +76,9 @@ public class Plugin : BaseUnityPlugin
                 break;
             case SkillHelperMode.Performance:
                 this.HandlePerformance();
+                break;
+            case SkillHelperMode.Lockpick:
+                this.HandleLockPicking();
                 break;
         }
     }
@@ -213,19 +226,64 @@ public class Plugin : BaseUnityPlugin
             var charas = point.ListWitnesses(ELayer.pc, 4, WitnessType.music);
             charas = charas
                 .Where(chara => chara.interest > 0)
-                .Where(chara => !(EClass._zone is Zone_Music && (chara.IsPCFaction || chara.IsPCFactionMinion)))
+                .Where(chara => !(EClass._zone is Zone_Music && (chara.IsPCFaction || chara.IsPCFactionMinion || chara.IsPCParty)))
                 .ToList();
             if (!charas.Any())
                 return;
             var score = charas.Average(chara => chara.LV) * charas.Count;
+            var distance = point.Distance(ELayer.pc.pos);
+            if (distance > 10)
+                score -= distance;
             if (score > bestScore)
             {
                 bestScore = score;
                 bestPoint = point.Copy();
-                this.Logger.LogInfo($"BestScore: {bestScore}, BestPoint: {bestPoint}");
+                this.Logger.LogInfo($"BestScore: {bestScore}, BestPoint: {bestPoint} Distance: {distance}");
             }
         });
         return bestPoint;
+    }
+
+    public void OnGUI()
+    {
+        if (this.mode != SkillHelperMode.None)
+        {
+            GUI.Label(new Rect(10, 10, 100, 20), "SkillHelperMode: " + this.mode);
+        }
+    }
+
+    public void HandleLockPicking()
+    {
+        var acts = new List<AIAct>();
+        ELayer._map.bounds.ForeachPoint(point =>
+        {
+            var container = point.ListThings<TraitContainer>();
+            if (container.Count > 0)
+            {
+                foreach (var c in container)
+                {
+                    if (c.c_lockLv > 0)
+                    {
+                        acts.Add(new AI_OpenLock() { target = c.Thing });
+                    }
+                }
+            }
+        });
+
+
+        if (!acts.Any())
+        {
+            ELayer.pc.Say("invalidAction");
+            this.mode = SkillHelperMode.None;
+            return;
+        }
+        var act = acts.OrderBy(act => act.GetDestinationPoint().RealDistance(ELayer.pc.pos)).First();
+        ELayer.pc.SetAIImmediate(act);
+    }
+
+    public bool ShouldStop()
+    {
+        return ELayer.pc.stamina.value < -10;
     }
 
 
@@ -236,5 +294,6 @@ public class Plugin : BaseUnityPlugin
         Shear,
         Water,
         Performance,
+        Lockpick,
     }
 }
