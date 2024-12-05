@@ -13,8 +13,9 @@
 [*][b]Manabar in Party Window:[/b] Adds a mana bar to the party UI.  
 [*][b]Item Value in Tooltips:[/b] Displays item value directly in tooltips.  
 [*][b]Tourism Value Added:[/b] Shows tourism value for relevant items.  
+[*][b]Decay Added:[/b] Shows % of decay (100% is rotten).
 [/list]
 
 	</description>
-	<version>0.22.1</version>
+	<version>0.23.46</version>
 </Meta>

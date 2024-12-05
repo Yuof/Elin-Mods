@@ -6,7 +6,7 @@ using UnityEngine;
 
 namespace Elin_UIExtensions
 {
-    [HarmonyPatch]
+    //[HarmonyPatch]
     public class CombatLog
     {
         [HarmonyPatch(typeof(WidgetMainText), "Append", [typeof(string), typeof(Color), typeof(Point)])]

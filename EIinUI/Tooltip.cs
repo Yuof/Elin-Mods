@@ -84,7 +84,7 @@ namespace Elin_UI
 
         private static string CalcDecay(Thing thing)
         {
-            return $"This is {((float)thing.decay / (float)thing.MaxDecay):P0} decayed.";
+            return $"It is {((float)thing.decay / (float)thing.MaxDecay):P0} decayed.";
         }
     }
 }
