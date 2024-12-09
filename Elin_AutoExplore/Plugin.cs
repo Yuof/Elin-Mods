@@ -1,35 +1,40 @@
 ﻿using BepInEx;
 using HarmonyLib;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
 namespace Elin_AutoExplore;
 
-[BepInPlugin("yuof.elin.autoExplore.mod", "Elin AutoExplorer", "1.1.0.0")]
+[BepInPlugin("yuof.elin.autoExplore.mod", "Elin AutoExplorer", "1.2.0.0")]
 public class Plugin : BaseUnityPlugin
 {
     private Chara playerCharacter => ELayer.pc;
-
     private Point currentPos => this.playerCharacter.pos;
     private MapBounds currentBounds => ELayer._map.bounds;
     private bool isEnable = false;
     private State state = State.Idle;
 
-    public AutoExplorerConfig AutoExplorerConfig { get; set; } = null!;
+    public AutoExplorerConfig AutoExplorerConfig { get; private set; } = null!;
     public static Plugin Instance { get; private set; } = null!;
+    public  IgnoreList IgnoreList { get; private set; } = null!;
 
+    private AIActionFinder actionFinder = null!;
 
     private void Awake()
     {
         var harmony = new Harmony("yuof.elin.autoExplore.mod");
         harmony.PatchAll();
+        Instance = this;
         this.AutoExplorerConfig = new AutoExplorerConfig(this.Config);
+        this.IgnoreList = new IgnoreList(this.AutoExplorerConfig.GatheringRestrictionList, AutoExplorerConfig.MiningRestrictionList);
+        this.actionFinder = new AIActionFinder();
 
         //this.Logger.LogInfo("AutoExplorer loaded.");
         //this.Logger.LogInfo(harmony.GetPatchedMethods().Select(@base => @base.Name.ToString()).Join());
-        Instance = this;
     }
+
     private void Unload()
     {
         var harmony = new Harmony("yuof.elin.autoExplore.mod");
@@ -66,7 +71,6 @@ public class Plugin : BaseUnityPlugin
             Msg.Say("regionAbortMove");
             return;
         }
-
 
         if (this.playerCharacter.ai.status == AIAct.Status.Fail && this.state != State.Starting)
         {
@@ -108,12 +112,14 @@ public class Plugin : BaseUnityPlugin
 
         var enemies = this.FindVisibleEnemies();
         var shouldRest = this.AutoExplorerConfig.UseMeditation.Value && this.ShouldRest();
+        var shouldEat = this.AutoExplorerConfig.HandleHunger.Value != AutoExplorerConfig.HungerMode.Ignore && this.IsHungry();
 
-        var trap = this.AutoExplorerConfig.HandleTraps.Value ? this.FindTrap() : null;
+        var trap = this.AutoExplorerConfig.HandleTraps.Value ? this.actionFinder.FindTrap() : null;
 
         switch (this.state)
         {
             case State.Exploring:
+                if (shouldEat) { this.HandleFood(); break; }
                 if (shouldRest) { this.HandleResting(); break; }
                 break;
             case State.Combat:
@@ -124,9 +130,10 @@ public class Plugin : BaseUnityPlugin
             case State.Starting:
             case State.Idle:
                 if (enemies.Any()) { this.HandleCombat(enemies); break; }
+                if (shouldEat) { this.HandleFood(); break; }
                 if (shouldRest) { this.HandleResting(); break; }
                 if (trap != null) { this.HandleTrap(trap); break; }
-                var actions = this.FindPotentialActions();
+                var actions = this.actionFinder.FindPotentialActions();
                 if (actions.Any()) { this.HandleActions(actions); break; }
                 this.Logger.LogMessage("Nothing to do.");
                 Msg.Say("noTargetFound");
@@ -169,18 +176,17 @@ public class Plugin : BaseUnityPlugin
         if (Input.GetKeyDown(this.AutoExplorerConfig.GoDownKey.Value))
         {
             this.Logger.LogInfo("Go down key pressed");
-            var stairs = this.FindStairs();
+            var stairs = this.actionFinder.FindStairs();
             if (stairs != null)
             {
                 this.playerCharacter.SetAIImmediate(stairs);
                 this.state = State.Exploring;
-
             }
         }
         if (Input.GetKeyDown(this.AutoExplorerConfig.GoUpKey.Value))
         {
             this.Logger.LogInfo("Go up key pressed");
-            var stairs = this.FindStairs(false);
+            var stairs = this.actionFinder.FindStairs(false);
             if (stairs != null)
             {
                 this.playerCharacter.SetAIImmediate(stairs);
@@ -191,161 +197,10 @@ public class Plugin : BaseUnityPlugin
         //this.Logger.LogInfo("Current key: " + Input.inputString);
     }
 
-    private List<AIAct> FindPotentialActions()
-    {
-        var unexplored = this.FindUnexploredPoints();
-        var loot = this.FindLoot();
-        var harvestables = this.FindHarvestables();
-        var mineables = this.FindMineables();
-        var actions = unexplored.Concat(loot)
-                                .Concat(harvestables)
-                                .Concat(mineables)
-                                .OrderBy(p => this.currentPos.RealDistance(p.GetDestinationPoint()))
-                                .ToList();
-        //this.Logger.LogInfo($"Found {actions.Count} potential actions.");
-        return actions;
-    }
-
-    private List<AIAct> FindUnexploredPoints()
-    {
-        var tasks = new List<AIAct>();
-        this.currentBounds.ForeachPoint(point =>
-        {
-            if (!point.IsSeen && !point.IsBlocked && this.IsPointReachable(point))
-            {
-                tasks.Add(new AI_Goto(point, 1));
-            }
-        });
-
-        //Logger.LogInfo($"Found {tasks.Count} hidden points.");
-        return tasks;
-    }
-
-    private List<AIAct> FindLoot()
-    {
-        var tasks = new List<AIAct>();
-        this.currentBounds.ForeachPoint(point =>
-        {
-            if (!point.IsHidden && !point.IsBlocked && point.HasThing && this.IsPointReachable(point))
-            {
-                var things = point.Things;
-                foreach (var thing in things)
-                {
-                    //Logger.LogInfo(thing.ToString() + " | " +thing.GetRootCard().placeState + " | " + this.CanPick(thing));
-                    if (thing.GetRootCard().placeState == PlaceState.roaming && this.CanPick(thing))
-                    {
-                        tasks.Add(new AI_Goto(point, 0));
-                        //Logger.LogInfo(thing.ToString() + " | " + thing.GetRootCard().placeState + " | " + this.CanPick(thing)+ " | " + thing.isNPCProperty + " | " + thing.ExistsOnMap);
-                    }
-
-                }
-            }
-        });
-
-        //this.Logger.LogInfo($"Found {tasks.Count} loot points.");
-        return tasks;
-    }
-
-    private Card? FindTrap()
-    {
-        var currentFov = this.playerCharacter.fov.ListPoints();
-        currentFov = currentFov.OrderBy(p => p.Distance(this.currentPos)).ToList();
-        foreach (var point in currentFov)
-        {
-            if (!point.IsHidden && !point.IsBlocked && point.HasThing && this.IsPointReachable(point))
-            {
-                var things = point.Things;
-                foreach (var thing in things)
-                {
-                    //Logger.LogInfo(thing.ToString() + " | " + thing.GetRootCard().placeState + " | " + this.CanPick(thing));
-                    if (thing.GetRootCard().placeState == PlaceState.installed && thing.trait is TraitTrap)
-                    {
-                        var trait = thing.trait as TraitTrap;
-                        if (trait!.CanDisarmTrap)
-                            return thing.GetRootCard();
-
-                    }
-                }
-            }
-        }
-        return null;
-    }
-
-    private List<AIAct> FindHarvestables()
-    {
-        var tasks = new List<AIAct>();
-        if (!this.AutoExplorerConfig.HandleHarvestables.Value) return tasks;
-        this.currentBounds.ForeachPoint(point =>
-        {
-            //this.Logger.LogInfo("Checking point " + point);
-            if (!point.IsInBounds || (!point.HasObj && !point.HasThing))
-                return;
-            var task = TaskHarvest.TryGetAct(ELayer.pc, point);
-            if (task != null)
-            {
-                if (!this.IsPointReachable(point, 1))
-                    return;
-                task.SetTarget(this.playerCharacter);
-                if (!task.IsTooHard)
-                    tasks.Add(task);
-                //this.Logger.LogInfo(task.ToString() + " " + task.target + task.TargetType + task.IsTooHard);
-            }
-        });
-        //this.Logger.LogInfo($"Found {tasks.Count} harvestables.");
-        return tasks;
-    }
-
-    private List<AIAct> FindMineables()
-    {
-        var tasks = new List<AIAct>();
-        if (!this.AutoExplorerConfig.HandleMineables.Value) return tasks;
-        this.currentBounds.ForeachPoint(point =>
-        {
-            if (!point.IsInBounds)
-                return;
-            var canMine = TaskMine.CanMine(point, this.playerCharacter.Tool);
-            if (canMine)
-            {
-                // this.Logger.LogInfo($"Can mine {point}");
-                if (!this.IsPointReachable(point, 1))
-                    return;
-                var task = new TaskMine() { pos = point.Copy() };
-                task.SetTarget(this.playerCharacter);
-                if (!task.IsTooHard)
-                    tasks.Add(task);
-                // this.Logger.LogInfo($"{task.ToString()} {task.GetDestinationPoint()} {task.IsTooHard}(lvl{task.reqLv})");
-            }
-        });
-        //this.Logger.LogInfo($"Found {tasks.Count} mineables.");
-        return tasks;
-    }
-
-    private AIAct? FindStairs(bool down = true)
-    {
-        AIAct? action = null;
-        this.currentBounds.ForeachPoint(point =>
-        {
-            if (!point.IsHidden && !point.IsBlocked && point.HasThing && this.IsPointReachable(point))
-            {
-                var things = point.Things;
-                foreach (var thing in things)
-                {
-                    if (thing.GetRootCard().placeState == PlaceState.installed && thing.trait is TraitStairs)
-                    {
-                        var traitStairs = thing.trait as TraitStairs;
-                        if (traitStairs?.IsDownstairs == down)
-                            action = new AI_Goto(point, 0);
-                    }
-                }
-            }
-        });
-        return action;
-    }
-
     private bool ShouldRest()
     {
-        return 
-            !this.currentPos.cell.CanSuffocate() 
+        return
+            !this.currentPos.cell.CanSuffocate()
                && (
                    this.playerCharacter.hp * 100 < this.playerCharacter.MaxHP * this.AutoExplorerConfig.MinHP.Value
                    || this.playerCharacter.mana.value * 100 < this.playerCharacter.mana.max * this.AutoExplorerConfig.MinMP.Value
@@ -355,7 +210,7 @@ public class Plugin : BaseUnityPlugin
 
     private bool InventoryIsFull()
     {
-        return this.playerCharacter.burden.GetPhase() == 3;
+        return this.playerCharacter.burden.GetPhase() >= 3;
     }
 
     private bool Drowning()
@@ -365,12 +220,23 @@ public class Plugin : BaseUnityPlugin
         return this.playerCharacter.GetCondition<ConSuffocation>().value >= 100;
     }
 
-    public bool IsPointReachable(Point point, int distance = 0)
+    private bool IsHungry()
     {
-        var path = new PathProgress();
-        path.RequestPathImmediate(this.currentPos, point, distance, false);
-        return path.HasPath;
+        //this.Logger.LogInfo("Hunger: " + this.playerCharacter.hunger.value);
+        return this.playerCharacter.hunger.GetPhase() >= 3;
+    }
 
+    private void HandleFood()
+    {
+        if (this.AutoExplorerConfig.HandleHunger.Value == AutoExplorerConfig.HungerMode.StopAutoExplore
+            || this.playerCharacter.things.Find((Thing a) => this.playerCharacter.CanEat(a)) == null)
+        {
+            this.Logger.LogWarning("Hungry. Stopping autoExplore.");
+            this.isEnable = false;
+            Msg.Say("regionAbortMove");
+            return;
+        }
+        this.playerCharacter.InstantEat();
     }
 
     private void HandleCombat(List<Chara> enemies)
@@ -391,11 +257,8 @@ public class Plugin : BaseUnityPlugin
     {
         var map = ELayer._map;
         var currentFov = this.playerCharacter.fov.ListPoints();
-        //Logger.LogMessage("CurrentFov.Count: " + currentFov.Count);
         var allChars = map.charas.ToList();
         var currentCharas = allChars.Where(chara => currentFov.Contains(chara.pos)).ToList();
-        //Logger.LogMessage("currentCharas.Count: " + currentCharas.Count);
-        //check for enemies
         var enemies = currentCharas.FindAll(chara => chara.hostility == Hostility.Enemy);
         return enemies;
     }
@@ -437,76 +300,6 @@ public class Plugin : BaseUnityPlugin
             action.Perform();
         }
         this.state = State.Resting;
-    }
-
-    private bool CanPick(Thing thing)
-    {
-        if (thing.isDestroyed)
-        {
-            return false;
-        }
-
-        Card rootCard = thing.GetRootCard();
-        if (rootCard.isDestroyed)
-        {
-            return false;
-        }
-
-        if (this.playerCharacter.things.IsFull(thing))
-        {
-            return false;
-        }
-
-        if (thing.isNPCProperty)
-        {
-            return false;
-        }
-
-        if (thing.ignoreAutoPick)
-        {
-            return false;
-        }
-
-        if (thing.isThing && thing.placeState == PlaceState.roaming && !thing.ignoreAutoPick)
-        {
-            if (EClass.core.config.game.advancedMenu)
-            {
-                var dataPick = EClass.player.dataPick;
-                var containerFlag = thing.category.GetRoot().id.ToEnum<ContainerFlag>(true);
-                if (containerFlag == ContainerFlag.none)
-                {
-                    containerFlag = ContainerFlag.other;
-                }
-
-                if ((!dataPick.noRotten || !thing.IsDecayed) && (!dataPick.onlyRottable || thing.trait.Decay != 0) &&
-                    (!dataPick.userFilter || dataPick.IsFilterPass(thing.GetName(NameStyle.Full, 1))))
-                {
-                    if (dataPick.advDistribution)
-                    {
-                        using (var enumerator4 = dataPick.cats.GetEnumerator())
-                        {
-                            while (enumerator4.MoveNext())
-                            {
-                                var num4 = enumerator4.Current;
-                                if (thing.category.uid == num4)
-                                {
-                                    return true;
-                                }
-                            }
-
-                            return false;
-                        }
-                    }
-
-                    if (!dataPick.flag.HasFlag(containerFlag))
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-
-        return true;
     }
 
     private enum State

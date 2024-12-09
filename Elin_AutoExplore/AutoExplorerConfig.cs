@@ -19,10 +19,16 @@ namespace Elin_AutoExplore
             this.HandleFighting = config.Bind("Toggles", "HandleFighting", true, "Should autoexplore fight enemies?");
             this.HandleHarvestables = config.Bind("Toggles", "HandleHarvestables", false, "Should autoexplore harvest?");
             this.HandleMineables = config.Bind("Toggles", "HandleMineables", false, "Should autoexplore mine?");
+            this.HandleShrines = config.Bind("Toggles", "HandleShrines", true, "Should autoexplore use shrines?");
+            this.HandleHunger = config.Bind("Toggles", "HandleHunger", HungerMode.AutoEat, "Should autoexplore eat food?");
 
             this.MinMP = config.Bind("Regen", "minMP", 90, "Percentage of MP to start meditation.");
             this.MinHP = config.Bind("Regen", "minHP", 100, "Percentage of HP to start meditation.");
+
+            this.GatheringRestrictionList = config.Bind("Restrictions", "GatheringRestrictionList", "wreck,chemicals,wall frame,debris,moss grass,a vine,pebble,stalagmite,chunk", "Comma separated list of things to ignore when harvesting.");
+            this.MiningRestrictionList = config.Bind("Restrictions", "MiningRestrictionList", "metal block(copper),soil block(soil),soil block covered with vines (soil)", "Comma separated list of things to ignore when mining.");
         }
+
 
         public ConfigEntry<KeyCode> ActivationKey { get; set; }
         public ConfigEntry<KeyboardShortcut> ToggleHarvestingAndMiningMode { get; set; }
@@ -36,6 +42,10 @@ namespace Elin_AutoExplore
         public ConfigEntry<bool> HandleFighting { get; set; }
         public ConfigEntry<bool> HandleHarvestables { get; set; }
         public ConfigEntry<bool> HandleMineables { get; set; }
+        public ConfigEntry<bool> HandleShrines { get; set; }
+        public ConfigEntry<string> GatheringRestrictionList { get; set; }
+        public ConfigEntry<string> MiningRestrictionList { get; set; }
+        public ConfigEntry<HungerMode> HandleHunger { get; set; }
 
         private Mode GetMode()
         {
@@ -111,6 +121,13 @@ namespace Elin_AutoExplore
             Harvest,
             Mine,
             HarvestAndMine,
+        }
+
+        public enum HungerMode
+        {
+            Ignore,
+            AutoEat,
+            StopAutoExplore,
         }
     }
 }

@@ -4,6 +4,7 @@
 	<id>yuof.elin.uiExtensions</id>
 	<author>Yuof</author>
 	<loadPriority>100</loadPriority>
+  <tags>QoL,Utility</tags>
 	<description>
 [h1]QoL UI Extensions Mod[/h1]
 
@@ -17,5 +18,5 @@
 [/list]
 
 	</description>
-	<version>0.23.46</version>
+	<version>0.23.49</version>
 </Meta>

@@ -26,15 +26,24 @@ namespace Elin_AutoExplore
                         val => config.HandleMineables.Value = val);
                     menu.AddToggle(Translations.GetTranslation(nameof(config.HandleTraps)), config.HandleTraps.Value,
                         val => config.HandleTraps.Value = val);
+                    menu.AddToggle(Translations.GetTranslation(nameof(config.HandleShrines)), config.HandleShrines.Value,
+                        val => config.HandleShrines.Value = val);
+                    menu.AddSlider(Translations.GetTranslation(nameof(config.HandleHunger)),
+                        val => ((AutoExplorerConfig.HungerMode)(int)val).ToString(),
+                        (float)config.HandleHunger.Value,
+                        val => config.HandleHunger.Value = (AutoExplorerConfig.HungerMode)(int)val,
+                        0,
+                        2,
+                        true,
+                        false);
 
                     menu.AddSeparator();
                     menu.AddToggle(Translations.GetTranslation(nameof(config.UseMeditation)), config.UseMeditation.Value,
                         val => config.UseMeditation.Value = val);
                     menu.AddSlider(Translations.GetTranslation(nameof(AutoExplorerConfig.MinMP)),
-                        val => config.MinMP.Value.ToString(), config.MinMP.Value, val => { }, 0, 100, true, false);
+                        val => val.ToString(), config.MinMP.Value, val => config.MinMP.Value = (int)val, 0, 100, true, false);
                     menu.AddSlider(Translations.GetTranslation(nameof(AutoExplorerConfig.MinHP)),
-                        val => config.MinHP.Value.ToString(), config.MinHP.Value, val => config.MinHP.Value = (int)val,
-                        0, 100, true, false);
+                        val => val.ToString(), config.MinHP.Value, val => config.MinHP.Value = (int)val, 0, 100, true, false);
                     menu.Show();
                     return false;
                 });
