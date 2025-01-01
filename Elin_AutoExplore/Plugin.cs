@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Elin_AutoExplore;
 
-[BepInPlugin("yuof.elin.autoExplore.mod", "Elin AutoExplorer", "1.2.0.0")]
+[BepInPlugin("yuof.elin.autoExplore.mod", "Elin AutoExplorer", "1.2.0.1")]
 public class Plugin : BaseUnityPlugin
 {
     private Chara playerCharacter => ELayer.pc;

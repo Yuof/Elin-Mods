@@ -224,33 +224,39 @@ namespace Elin_AutoExplore
             {
                 if (EClass.core.config.game.advancedMenu)
                 {
-                    var dataPick = EClass.player.dataPick;
-                    var containerFlag = thing.category.GetRoot().id.ToEnum<ContainerFlag>(true);
+                    Window.SaveData dataPick = EClass.player.dataPick;
+                    ContainerFlag containerFlag = thing.category.GetRoot().id.ToEnum<ContainerFlag>(true);
                     if (containerFlag == ContainerFlag.none)
                     {
                         containerFlag = ContainerFlag.other;
                     }
-
-                    if ((!dataPick.noRotten || !thing.IsDecayed) && (!dataPick.onlyRottable || thing.trait.Decay != 0) &&
-                        (!dataPick.userFilter || dataPick.IsFilterPass(thing.GetName(NameStyle.Full, 1))))
+                    if ((!dataPick.noRotten || !thing.IsDecayed) && (!dataPick.onlyRottable || thing.trait.Decay != 0))
                     {
-                        if (dataPick.advDistribution)
+                        if (dataPick.userFilter)
                         {
-                            using (var enumerator4 = dataPick.cats.GetEnumerator())
+                            Window.SaveData.FilterResult filterResult = dataPick.IsFilterPass(thing.GetName(NameStyle.Full, 1));
+                            if (filterResult == Window.SaveData.FilterResult.Block)
                             {
-                                while (enumerator4.MoveNext())
-                                {
-                                    var num4 = enumerator4.Current;
-                                    if (thing.category.uid == num4)
-                                    {
-                                        return true;
-                                    }
-                                }
-
                                 return false;
                             }
+                            if (filterResult == Window.SaveData.FilterResult.PassWithoutFurtherTest)
+                            {
+                                return true;
+                            }
                         }
-
+                        if (dataPick.advDistribution)
+                        {
+                            using HashSet<int>.Enumerator enumerator4 = dataPick.cats.GetEnumerator();
+                            while (enumerator4.MoveNext())
+                            {
+                                int num4 = enumerator4.Current;
+                                if (thing.category.uid == num4)
+                                {
+                                    return true;
+                                }
+                            }
+                            return false;
+                        }
                         if (!dataPick.flag.HasFlag(containerFlag))
                         {
                             return true;
