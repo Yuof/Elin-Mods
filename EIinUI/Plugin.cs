@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Elin_UIExtensions;
 
-[BepInPlugin("yuof.elin.uiExtensions.mod", "Elin UI Extensions", "1.0.0.0")]
+[BepInPlugin("yuof.elin.uiExtensions.mod", "Elin UI Extensions", "1.0.0.1")]
 public class Plugin : BaseUnityPlugin
 {
     internal static new ManualLogSource Log;
