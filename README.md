@@ -4,6 +4,8 @@ A collection of [BepInEx](https://github.com/BepInEx/BepInEx) mods for the game 
 
 Repository: <https://github.com/Yuof/Elin-Mods>
 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Y0J3204HLO)
+
 ## Mods
 
 ### 🗺️ AutoExplore — `Elin_AutoExplore`
