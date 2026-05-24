@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Elin_AutoExplore;
 
-[BepInPlugin("yuof.elin.autoExplore.mod", "Elin AutoExplorer", "1.2.0.1")]
+[BepInPlugin("yuof.elin.autoExplore.mod", "Elin AutoExplorer", "1.2.0.3")]
 public class Plugin : BaseUnityPlugin
 {
     private Chara playerCharacter => ELayer.pc;
@@ -229,15 +229,28 @@ public class Plugin : BaseUnityPlugin
     private void HandleFood()
     {
         if (this.AutoExplorerConfig.HandleHunger.Value == AutoExplorerConfig.HungerMode.StopAutoExplore
-            || this.playerCharacter.things.Find((Thing a) => this.playerCharacter.CanEat(a)) == null)
+            || this.playerCharacter.things.Find((Thing a) => this.playerCharacter.CanEat(a) && !a.c_isImportant) == null)
         {
             this.Logger.LogWarning("Hungry. Stopping autoExplore.");
             this.isEnable = false;
-            Msg.Say("regionAbortMove");
+            Msg.Say("daFood");
             return;
         }
-        this.playerCharacter.InstantEat();
+
+        var food = this.playerCharacter.things.Find((Thing a) => this.playerCharacter.CanEat(a, true) && !a.c_isImportant, true);
+        if (food == null)
+        {
+            food = this.playerCharacter.things.Find((Thing a) => this.playerCharacter.CanEat(a, false) && !a.c_isImportant, true);
+        }
+        if (food == null)
+            return;
+        var ai = new AI_Eat() { target = food };
+
+        this.playerCharacter.SetAIImmediate(ai);
+        this.state = State.Resting;
+        //this.playerCharacter.InstantEat();
     }
+
 
     private void HandleCombat(List<Chara> enemies)
     {

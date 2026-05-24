@@ -14,9 +14,9 @@ public static class Extensions
         }
     }
 
-    public static int RealDistance(this Point a, Point b)
+    public static int RealDistance(this Point a, Point b, IPathfindWalker walker)
     {
-        var path = new PathProgress();
+        var path = new PathProgress() { walker = walker };
         path.RequestPathImmediate(a, b, 0, false);
         if (path.nodes.Count == 0)
         {

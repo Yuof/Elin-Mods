@@ -23,7 +23,7 @@ namespace Elin_AutoExplore
                                     .Concat(harvestables)
                                     .Concat(mineables)
                                     .Concat(shrines)
-                                    .OrderBy(p => this.currentPos.RealDistance(p.GetDestinationPoint()))
+                                    .OrderBy(p => this.currentPos.RealDistance(p.GetDestinationPoint(), this.playerCharacter))
                                     .ToList();
             return actions;
         }
@@ -139,7 +139,7 @@ namespace Elin_AutoExplore
             {
                 if (!point.IsHidden && !point.IsBlocked && point.HasThing && this.IsPointReachable(point))
                 {
-                    var things = point.Things;
+                    var things = point.Things.ToArray();
                     foreach (var thing in things)
                     {
                         if (thing.GetRootCard().placeState == PlaceState.installed && thing.trait is TraitShrine trait)
@@ -187,7 +187,7 @@ namespace Elin_AutoExplore
 
         public bool IsPointReachable(Point point, int distance = 0)
         {
-            var path = new PathProgress();
+            var path = new PathProgress() { walker = this.playerCharacter } ;
             path.RequestPathImmediate(this.currentPos, point, distance, false);
             return path.HasPath;
         }
