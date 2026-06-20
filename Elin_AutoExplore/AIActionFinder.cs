@@ -20,11 +20,13 @@ namespace Elin_AutoExplore
             var mineables = this.FindMineables();
             var shrines = this.FindShrines();
             var statues = this.FindStatues();
+            var chests = this.FindChestApproaches();
             var actions = unexplored.Concat(loot)
                                     .Concat(harvestables)
                                     .Concat(mineables)
                                     .Concat(shrines)
                                     .Concat(statues)
+                                    .Concat(chests)
                                     .OrderBy(p => this.currentPos.RealDistance(p.GetDestinationPoint(), this.playerCharacter))
                                     .ToList();
             return actions;
@@ -238,6 +240,69 @@ namespace Elin_AutoExplore
             return tasks;
         }
 
+        // All reachable lootable containers (chests, etc.) on the map. A container qualifies when it is
+        // still locked (contents unknown) or already holds at least one item we are allowed to pick.
+        // NPC-owned containers are skipped so we never commit theft in towns; merchant chests are ignored.
+        public List<Thing> FindChests()
+        {
+            var chests = new List<Thing>();
+            if (!this.config.HandleChests.Value) return chests;
+            this.currentBounds.ForeachPoint(point =>
+            {
+                if (point.IsHidden || !point.HasThing || !this.CanReach(point, 1))
+                    return;
+                foreach (var thing in point.Things.ToArray())
+                {
+                    if (this.IsLootableContainer(thing))
+                        chests.Add(thing);
+                }
+            });
+            return chests;
+        }
+
+        private bool IsLootableContainer(Thing thing)
+        {
+            var placeState = thing.GetRootCard().placeState;
+            if (placeState != PlaceState.installed && placeState != PlaceState.roaming)
+                return false;
+            if (thing.trait is not TraitContainer || thing.trait is TraitChestMerchant)
+                return false;
+            if (thing.isNPCProperty)
+                return false;
+            return thing.c_lockLv > 0 || thing.things.Any(t => this.CanPick(t, true));
+        }
+
+        // Walk tasks toward openable containers we still need to reach, so they are looted as part of the
+        // normal distance-sorted exploration instead of by backtracking at the end of the floor. Chests are
+        // walkable, so we path onto them (dist 0) and they sort by real distance like floor loot; the dist-1
+        // fallback covers the rare container that blocks its own cell. Adjacent chests are acted on directly
+        // by the plugin; unpickable locks are left for the end-of-floor handler.
+        public List<AIAct> FindChestApproaches()
+        {
+            var tasks = new List<AIAct>();
+            foreach (var chest in this.FindChests())
+            {
+                if (chest.c_lockLv > 0 && !this.CanPickLock(chest))
+                    continue;
+                if (this.currentPos.Distance(chest.pos) <= 1)
+                    continue;
+                var dist = this.IsPointReachable(chest.pos) ? 0 : 1;
+                tasks.Add(new AI_Goto(chest.pos, dist));
+            }
+            return tasks;
+        }
+
+        // Effective lockpicking skill for the player, mirroring Trait.TryOpenLock. A lockpick tool raises
+        // it. If this is not strictly greater than the lock level, the lock can never be picked.
+        public bool CanPickLock(Thing chest)
+        {
+            var tool = this.playerCharacter.things.FindBest<TraitLockpick>((Thing t) => -t.c_charges);
+            var skill = tool != null
+                ? this.playerCharacter.Evalue(280) + 10
+                : this.playerCharacter.Evalue(280) / 2 + 2;
+            return skill > chest.c_lockLv;
+        }
+
         public Card? FindTrap()
         {
             var currentFov = this.playerCharacter.fov.ListPoints();
@@ -275,7 +340,7 @@ namespace Elin_AutoExplore
             return this.currentPos.Distance(point) <= distance || this.IsPointReachable(point, distance);
         }
 
-        public bool CanPick(Thing thing)
+        public bool CanPick(Thing thing, bool fromContainer = false)
         {
             if (thing.isDestroyed)
             {
@@ -303,7 +368,7 @@ namespace Elin_AutoExplore
                 return false;
             }
 
-            if (thing.isThing && thing.placeState == PlaceState.roaming && !thing.ignoreAutoPick)
+            if (thing.isThing && (fromContainer || thing.placeState == PlaceState.roaming) && !thing.ignoreAutoPick)
             {
                 if (EClass.core.config.game.advancedMenu)
                 {

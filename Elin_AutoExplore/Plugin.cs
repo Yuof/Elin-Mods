@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Elin_AutoExplore;
 
-[BepInPlugin("yuof.elin.autoExplore.mod", "Elin AutoExplorer", "1.4.0.0")]
+[BepInPlugin("yuof.elin.autoExplore.mod", "Elin AutoExplorer", "1.5.0.0")]
 public class Plugin : BaseUnityPlugin
 {
     private Chara playerCharacter => ELayer.pc;
@@ -133,8 +133,10 @@ public class Plugin : BaseUnityPlugin
                 if (shouldEat) { this.HandleFood(); break; }
                 if (shouldRest) { this.HandleResting(); break; }
                 if (trap != null) { this.HandleTrap(trap); break; }
+                if (this.AutoExplorerConfig.HandleChests.Value && this.TryHandleAdjacentChest()) break;
                 var actions = this.actionFinder.FindPotentialActions();
                 if (actions.Any()) { this.HandleActions(actions); break; }
+                if (this.AutoExplorerConfig.HandleChests.Value && this.TryHandleImpossibleChest()) break;
                 if (this.AutoExplorerConfig.AutoDescend.Value && this.TryDescend()) break;
                 this.Logger.LogMessage("Nothing to do.");
                 Msg.Say("noTargetFound");
@@ -296,6 +298,69 @@ public class Plugin : BaseUnityPlugin
             this.playerCharacter.SetAIImmediate(Ai);
         }
         this.state = State.Exploring;
+    }
+
+    // Acts on a chest the moment we're standing next to it (the explore loop walks us adjacent via
+    // FindChestApproaches). Lockpicks pickable locks, takes loot from open ones. Unpickable locks are
+    // ignored here and dealt with by TryHandleImpossibleChest once the floor is otherwise done.
+    private bool TryHandleAdjacentChest()
+    {
+        var chest = this.actionFinder.FindChests()
+            .Where(c => this.currentPos.Distance(c.pos) <= 1)
+            .OrderBy(c => this.currentPos.Distance(c.pos))
+            .FirstOrDefault();
+        if (chest == null)
+            return false;
+
+        if (chest.c_lockLv > 0)
+        {
+            if (!this.actionFinder.CanPickLock(chest))
+                return false; // can't pick it; handled at end of floor
+
+            // AI_OpenLock walks to the chest and picks it; it retries until it opens.
+            this.Logger.LogMessage("Lockpicking " + chest.Name);
+            this.playerCharacter.SetAIImmediate(new AI_OpenLock { target = chest });
+            this.state = State.Exploring;
+            return true;
+        }
+
+        this.LootChest(chest);
+        this.state = State.Starting;
+        return true;
+    }
+
+    // Once the floor is otherwise cleared, walk to any chest whose lock we can never pick, make one real
+    // attempt so the player sees the in-game "too hard" message, then stop.
+    private bool TryHandleImpossibleChest()
+    {
+        var chest = this.actionFinder.FindChests()
+            .Where(c => c.c_lockLv > 0 && !this.actionFinder.CanPickLock(c))
+            .OrderBy(c => this.currentPos.RealDistance(c.pos, this.playerCharacter))
+            .FirstOrDefault();
+        if (chest == null)
+            return false;
+
+        if (this.currentPos.Distance(chest.pos) > 1)
+        {
+            this.playerCharacter.SetAIImmediate(new AI_Goto(chest.pos, 1));
+            this.state = State.Exploring;
+            return true;
+        }
+
+        this.Logger.LogWarning("Chest lock too hard to pick. Stopping autoExplore.");
+        chest.trait.TryOpenLock(this.playerCharacter, true);
+        this.isEnable = false;
+        return true;
+    }
+
+    private void LootChest(Card chest)
+    {
+        this.Logger.LogMessage("Looting " + chest.Name);
+        foreach (var thing in chest.things.ToList())
+        {
+            if (this.actionFinder.CanPick(thing, true))
+                this.playerCharacter.Pick(thing, false);
+        }
     }
 
     private bool TryDescend()

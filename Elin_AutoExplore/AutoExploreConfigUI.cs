@@ -30,6 +30,8 @@ namespace Elin_AutoExplore
                         val => config.HandleShrines.Value = val);
                     menu.AddToggle(Translations.GetTranslation(nameof(config.HandleStatues)), config.HandleStatues.Value,
                         val => config.HandleStatues.Value = val);
+                    menu.AddToggle(Translations.GetTranslation(nameof(config.HandleChests)), config.HandleChests.Value,
+                        val => config.HandleChests.Value = val);
                     menu.AddToggle(Translations.GetTranslation(nameof(config.AutoDescend)), config.AutoDescend.Value,
                         val => config.AutoDescend.Value = val);
                     menu.AddSlider(Translations.GetTranslation(nameof(config.HandleHunger)),
