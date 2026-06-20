@@ -7,7 +7,7 @@ using UnityEngine;
 
 namespace Elin_AutoExplore;
 
-[BepInPlugin("yuof.elin.autoExplore.mod", "Elin AutoExplorer", "1.2.0.3")]
+[BepInPlugin("yuof.elin.autoExplore.mod", "Elin AutoExplorer", "1.4.0.0")]
 public class Plugin : BaseUnityPlugin
 {
     private Chara playerCharacter => ELayer.pc;
@@ -135,6 +135,7 @@ public class Plugin : BaseUnityPlugin
                 if (trap != null) { this.HandleTrap(trap); break; }
                 var actions = this.actionFinder.FindPotentialActions();
                 if (actions.Any()) { this.HandleActions(actions); break; }
+                if (this.AutoExplorerConfig.AutoDescend.Value && this.TryDescend()) break;
                 this.Logger.LogMessage("Nothing to do.");
                 Msg.Say("noTargetFound");
                 this.isEnable = false;
@@ -295,6 +296,53 @@ public class Plugin : BaseUnityPlugin
             this.playerCharacter.SetAIImmediate(Ai);
         }
         this.state = State.Exploring;
+    }
+
+    private bool TryDescend()
+    {
+        // A "Blocked" staircase (TraitStairsLocked) must be unlocked first. The game only allows this
+        // once the floor's exit lock is cleared (i.e. the boss/lord is dead), exposed via CanUnlockExit.
+        var locked = this.actionFinder.FindLockedStairs();
+        if (locked != null)
+        {
+            if (!ELayer._zone.CanUnlockExit)
+                return false; // Boss/lord not defeated yet; we can't open it.
+
+            if (this.currentPos.Distance(locked.pos) <= 1)
+            {
+                this.Logger.LogMessage("Unlocking blocked staircase.");
+                (locked.trait as TraitStairsLocked)!.OnUse(this.playerCharacter);
+                this.state = State.Starting; // A real downstairs now exists; re-scan next cycle.
+                return true;
+            }
+
+            this.playerCharacter.SetAIImmediate(new AI_Goto(locked.pos, 1));
+            this.state = State.Exploring;
+            return true;
+        }
+
+        var stairs = this.actionFinder.FindDownStairs();
+        if (stairs != null)
+        {
+            // Don't descend while a Nefia boss is still alive: MoveZone would pop a confirmation dialog
+            // that interrupts automation.
+            if (ELayer._zone.IsNefia && ELayer._zone.Boss != null)
+                return false;
+
+            if (this.currentPos.Equals(stairs.pos))
+            {
+                this.Logger.LogMessage("Descending to next floor.");
+                (stairs.trait as TraitStairs)!.MoveZone();
+                this.state = State.Starting;
+                return true;
+            }
+
+            this.playerCharacter.SetAIImmediate(new AI_Goto(stairs.pos, 0));
+            this.state = State.Exploring;
+            return true;
+        }
+
+        return false;
     }
 
     private void HandleResting()

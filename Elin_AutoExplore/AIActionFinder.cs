@@ -19,10 +19,12 @@ namespace Elin_AutoExplore
             var harvestables = this.FindHarvestables();
             var mineables = this.FindMineables();
             var shrines = this.FindShrines();
+            var statues = this.FindStatues();
             var actions = unexplored.Concat(loot)
                                     .Concat(harvestables)
                                     .Concat(mineables)
                                     .Concat(shrines)
+                                    .Concat(statues)
                                     .OrderBy(p => this.currentPos.RealDistance(p.GetDestinationPoint(), this.playerCharacter))
                                     .ToList();
             return actions;
@@ -131,6 +133,48 @@ namespace Elin_AutoExplore
             return action;
         }
 
+        public Thing? FindDownStairs()
+        {
+            Thing? result = null;
+            this.currentBounds.ForeachPoint(point =>
+            {
+                if (result != null || point.IsHidden || !point.HasThing || !this.CanReach(point))
+                    return;
+                foreach (var thing in point.Things)
+                {
+                    if (thing.GetRootCard().placeState == PlaceState.installed
+                        && thing.trait is TraitStairs stairs && stairs.IsDownstairs)
+                    {
+                        result = thing;
+                        return;
+                    }
+                }
+            });
+            return result;
+        }
+
+        public Thing? FindLockedStairs()
+        {
+            // A "Blocked" staircase is a TraitStairsLocked item, not a TraitStairs. It may sit on a
+            // blocked cell, so we don't filter on point.IsBlocked and approach it from an adjacent tile.
+            Thing? result = null;
+            this.currentBounds.ForeachPoint(point =>
+            {
+                if (result != null || point.IsHidden || !point.HasThing || !this.CanReach(point, 1))
+                    return;
+                foreach (var thing in point.Things)
+                {
+                    if (thing.GetRootCard().placeState == PlaceState.installed
+                        && thing.trait is TraitStairsLocked)
+                    {
+                        result = thing;
+                        return;
+                    }
+                }
+            });
+            return result;
+        }
+
         public List<AIAct> FindShrines()
         {
             var tasks = new List<AIAct>();
@@ -154,6 +198,38 @@ namespace Elin_AutoExplore
                                 continue;
                             }
                             //Logger.LogInfo("Using shrine " + trait.Shrine.id);
+                            trait.OnUse(this.playerCharacter);
+                        }
+                    }
+                }
+            });
+            return tasks;
+        }
+
+        public List<AIAct> FindStatues()
+        {
+            var tasks = new List<AIAct>();
+            if (!this.config.HandleStatues.Value) return tasks;
+            this.currentBounds.ForeachPoint(point =>
+            {
+                // Statues block their own cell, so we can't path onto it; only require a reachable
+                // adjacent tile (CanReach with distance 1) and don't filter on point.IsBlocked.
+                if (!point.IsHidden && point.HasThing && this.CanReach(point, 1))
+                {
+                    var things = point.Things.ToArray();
+                    foreach (var thing in things)
+                    {
+                        // God statues only become usable when active (gold material); CanUse also blocks
+                        // re-use (isOn=false after use) and use in the player's home zone.
+                        if (thing.GetRootCard().placeState == PlaceState.installed && thing.trait is TraitGodStatue trait)
+                        {
+                            if (!trait.CanUse(this.playerCharacter))
+                                continue;
+                            if (point.Distance(this.currentPos) > 1)
+                            {
+                                tasks.Add(new AI_Goto(point, 1));
+                                continue;
+                            }
                             trait.OnUse(this.playerCharacter);
                         }
                     }
@@ -190,6 +266,13 @@ namespace Elin_AutoExplore
             var path = new PathProgress() { walker = this.playerCharacter } ;
             path.RequestPathImmediate(this.currentPos, point, distance, false);
             return path.HasPath;
+        }
+
+        // A zero-length path (we're already at/within the target distance) produces no nodes, so
+        // PathProgress.HasPath is false. Treat already being within range as reachable.
+        public bool CanReach(Point point, int distance = 0)
+        {
+            return this.currentPos.Distance(point) <= distance || this.IsPointReachable(point, distance);
         }
 
         public bool CanPick(Thing thing)

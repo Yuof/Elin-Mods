@@ -20,7 +20,9 @@
     [*][b]Auto-meditation[/b]
     [*][b]Auto-sleep[/b]
     [*][b]Auto-shrine handling[/b]
+    [*][b]Auto-god-statue handling[/b]
     [*][b]Auto-food consumption[/b]
+    [*][b]Auto-descend to the next floor when the current one is cleared (opens boss-locked staircases)[/b]
     [/list]
 
     [h2]Controls[/h2]
@@ -63,6 +65,8 @@
     [*]Enable/disable harvesting
     [*]Enable/disable mining
     [*]Enable/disable handling of shrines
+    [*]Enable/disable handling of god statues
+    [*]Enable/disable auto-descend when the floor is cleared
     [*]Enable/disable handling of eating food
     [*]Set meditation thresholds
     [*]Set stamina thresholds
@@ -80,7 +84,6 @@
     [list]
     [*]The mod won't explore unreachable rooms.
     [*]If you are too tired to meditate, the mod will use a carried bed to prevent falling asleep.
-    [*]Autoeat functionality uses the same logic as the in-game overmap eating.
     [/list]
 
     [h2]Links[/h2]
@@ -90,5 +93,5 @@
     [/list]
 
   </description>
-	<version>0.23.309</version>
+	<version>0.23.311</version>
 </Meta>
