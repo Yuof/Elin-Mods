@@ -16,6 +16,10 @@ public class Plugin : BaseUnityPlugin
     private bool isEnable = false;
     private State state = State.Idle;
 
+    // Item the player was holding when auto-eating started (AI_Eat stows it to eat); restored afterwards.
+    private Card? heldBeforeEat;
+    private bool eatDisplacedHeld;
+
     public AutoExplorerConfig AutoExplorerConfig { get; private set; } = null!;
     public static Plugin Instance { get; private set; } = null!;
     public  IgnoreList IgnoreList { get; private set; } = null!;
@@ -98,6 +102,8 @@ public class Plugin : BaseUnityPlugin
 
         if (this.playerCharacter.IsDeadOrSleeping)
             return;
+
+        this.RestoreHeldAfterEating();
 
         if (!this.playerCharacter.ai.IsRunning)
         {
@@ -202,8 +208,9 @@ public class Plugin : BaseUnityPlugin
 
     private bool ShouldRest()
     {
+        var wouldSuffocate = this.currentPos.cell.CanSuffocate() && !this.playerCharacter.HasElement(1252);
         return
-            !this.currentPos.cell.CanSuffocate()
+            !wouldSuffocate
                && (
                    this.playerCharacter.hp * 100 < this.playerCharacter.MaxHP * this.AutoExplorerConfig.MinHP.Value
                    || this.playerCharacter.mana.value * 100 < this.playerCharacter.mana.max * this.AutoExplorerConfig.MinMP.Value
@@ -247,11 +254,44 @@ public class Plugin : BaseUnityPlugin
         }
         if (food == null)
             return;
-        var ai = new AI_Eat() { target = food };
 
+        // AI_Eat holds the food in hand (HoldCard), which stows whatever the player was holding (e.g. a
+        // pickaxe) back into the pack and leaves the hand empty once eating finishes. Remember it so
+        // RestoreHeldAfterEating can put it back, while keeping AI_Eat's proper eating animation/duration.
+        this.heldBeforeEat = (this.playerCharacter.held != null && this.playerCharacter.held != food)
+            ? this.playerCharacter.held
+            : null;
+        this.eatDisplacedHeld = false;
+
+        var ai = new AI_Eat() { target = food };
         this.playerCharacter.SetAIImmediate(ai);
         this.state = State.Resting;
-        //this.playerCharacter.InstantEat();
+    }
+
+    // AI_Eat takes the held item out of the hand to eat. Once eating has finished, put it back so the
+    // player keeps holding their tool (e.g. a pickaxe between mining actions).
+    private void RestoreHeldAfterEating()
+    {
+        if (this.heldBeforeEat == null)
+            return;
+
+        // Wait until eating has actually taken the item out of the hand before watching for completion,
+        // so we don't give up during the frame between setting the AI and it starting to run.
+        if (!this.eatDisplacedHeld)
+        {
+            if (this.playerCharacter.held != this.heldBeforeEat)
+                this.eatDisplacedHeld = true;
+            return;
+        }
+
+        if (this.playerCharacter.ai.IsRunning)
+            return; // still eating
+
+        var tool = this.heldBeforeEat;
+        this.heldBeforeEat = null;
+        this.eatDisplacedHeld = false;
+        if (!tool.isDestroyed && tool.GetRootCard() == this.playerCharacter)
+            this.playerCharacter.HoldCard(tool);
     }
 
 
