@@ -173,7 +173,7 @@ namespace Elin_AutoExplore
                     if (thing.GetRootCard().placeState == PlaceState.installed && thing.trait is TraitShrine trait)
                     {
                         if (!trait.CanUse(this.playerCharacter)) continue;
-                        if (trait.Shrine.id == "material" || trait.Shrine.id == "armor") continue;
+                        if (IsManualShrine(trait)) continue;
                         if (c.Distance(this.currentPos) > 1) return new AI_Goto(c, 1);
                         trait.OnUse(this.playerCharacter);
                     }
@@ -400,7 +400,7 @@ namespace Elin_AutoExplore
                         {
                             if (!trait.CanUse(this.playerCharacter))
                                 continue;
-                            if (trait.Shrine.id == "material" || trait.Shrine.id == "armor")
+                            if (IsManualShrine(trait))
                                 continue;
                             if (point.Distance(this.currentPos) > 1)
                             {
@@ -414,6 +414,35 @@ namespace Elin_AutoExplore
                 }
             });
             return tasks;
+        }
+
+        // Shrines that need manual player input (choosing an item to enchant/reforge) and so can't be
+        // auto-used. Kept in one place so FindShrines/ClassifyOnTile/FindUnusableShrines stay in sync.
+        public static bool IsManualShrine(TraitShrine trait)
+            => trait.Shrine.id == "material" || trait.Shrine.id == "armor";
+
+        // Reachable, usable shrines we can't auto-use (material/armor). Used by the "stop next to it" flow
+        // so the player can use them manually. Empty unless StopOnUnusableShrine is on.
+        public List<Thing> FindUnusableShrines()
+        {
+            var shrines = new List<Thing>();
+            if (!this.config.StopOnUnusableShrine.Value) return shrines;
+            this.currentBounds.ForeachPoint(point =>
+            {
+                if (point.IsHidden || point.IsBlocked || !point.HasThing || !this.IsPointReachable(point))
+                    return;
+                foreach (var thing in point.Things.ToArray())
+                {
+                    if (thing.GetRootCard().placeState == PlaceState.installed
+                        && thing.trait is TraitShrine trait
+                        && IsManualShrine(trait)
+                        && trait.CanUse(this.playerCharacter))
+                    {
+                        shrines.Add(thing);
+                    }
+                }
+            });
+            return shrines;
         }
 
         public List<AIAct> FindStatues()

@@ -19,7 +19,7 @@
     [*][b]Auto-mining[/b]
     [*][b]Auto-meditation[/b]
     [*][b]Auto-sleep[/b]
-    [*][b]Auto-shrine handling[/b]
+    [*][b]Auto-shrine handling[/b] (stops next to material/armor shrines so you can use them manually)
     [*][b]Auto-god-statue handling[/b]
     [*][b]Auto-chest looting (lockpicks and loots containers, e.g. boss chests)[/b]
     [*][b]Auto-food consumption[/b]
@@ -66,6 +66,7 @@
     [*]Enable/disable harvesting
     [*]Enable/disable mining
     [*]Enable/disable handling of shrines
+    [*]Enable/disable stopping next to material/armor shrines (which can't be auto-used) for manual use
     [*]Enable/disable handling of god statues
     [*]Enable/disable chest lockpicking and looting
     [*]Enable/disable auto-descend when the floor is cleared
@@ -95,5 +96,5 @@
     [/list]
 
   </description>
-	<version>0.23.312</version>
+	<version>0.23.313</version>
 </Meta>

@@ -28,6 +28,8 @@ namespace Elin_AutoExplore
                         val => config.HandleTraps.Value = val);
                     menu.AddToggle(Translations.GetTranslation(nameof(config.HandleShrines)), config.HandleShrines.Value,
                         val => config.HandleShrines.Value = val);
+                    menu.AddToggle(Translations.GetTranslation(nameof(config.StopOnUnusableShrine)), config.StopOnUnusableShrine.Value,
+                        val => config.StopOnUnusableShrine.Value = val);
                     menu.AddToggle(Translations.GetTranslation(nameof(config.HandleStatues)), config.HandleStatues.Value,
                         val => config.HandleStatues.Value = val);
                     menu.AddToggle(Translations.GetTranslation(nameof(config.HandleChests)), config.HandleChests.Value,

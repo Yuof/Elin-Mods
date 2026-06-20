@@ -146,6 +146,7 @@ public class Plugin : BaseUnityPlugin
                 var actions = this.actionFinder.FindPotentialActions();
                 if (actions.Any()) { this.HandleActions(actions); break; }
                 if (this.AutoExplorerConfig.HandleChests.Value && this.TryHandleImpossibleChest()) break;
+                if (this.AutoExplorerConfig.StopOnUnusableShrine.Value && this.TryHandleUnusableShrine()) break;
                 if (this.AutoExplorerConfig.AutoDescend.Value && this.TryDescend()) break;
                 this.Logger.LogMessage("Nothing to do.");
                 Msg.Say("noTargetFound");
@@ -395,6 +396,29 @@ public class Plugin : BaseUnityPlugin
 
         this.Logger.LogWarning("Chest lock too hard to pick. Stopping autoExplore.");
         chest.trait.TryOpenLock(this.playerCharacter, true);
+        this.isEnable = false;
+        return true;
+    }
+
+    // Once the floor is otherwise cleared, walk to the nearest shrine we can't auto-use (material/armor)
+    // and stop next to it so the player can use it manually.
+    private bool TryHandleUnusableShrine()
+    {
+        var shrine = this.actionFinder.FindUnusableShrines()
+            .OrderBy(s => this.currentPos.RealDistance(s.pos, this.playerCharacter))
+            .FirstOrDefault();
+        if (shrine == null)
+            return false;
+
+        if (this.currentPos.Distance(shrine.pos) > 1)
+        {
+            this.playerCharacter.SetAIImmediate(new AI_Goto(shrine.pos, 1));
+            this.state = State.Exploring;
+            return true;
+        }
+
+        this.Logger.LogWarning("Reached a shrine we can't auto-use. Stopping autoExplore.");
+        Msg.SayRaw(shrine.Name);
         this.isEnable = false;
         return true;
     }

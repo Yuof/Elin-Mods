@@ -20,6 +20,7 @@ namespace Elin_AutoExplore
             this.HandleHarvestables = config.Bind("Toggles", "HandleHarvestables", false, "Should autoexplore harvest?");
             this.HandleMineables = config.Bind("Toggles", "HandleMineables", false, "Should autoexplore mine?");
             this.HandleShrines = config.Bind("Toggles", "HandleShrines", true, "Should autoexplore use shrines?");
+            this.StopOnUnusableShrine = config.Bind("Toggles", "StopOnUnusableShrine", false, "Should autoexplore stop next to material/armor shrines (which it can't auto-use) so you can use them manually?");
             this.HandleStatues = config.Bind("Toggles", "HandleStatues", false, "Should autoexplore use god statues? (includes one-time effects like Jure's rebirth)");
             this.HandleChests = config.Bind("Toggles", "HandleChests", false, "Should autoexplore lockpick and loot containers (e.g. boss chests)?");
             this.AutoDescend = config.Bind("Toggles", "AutoDescend", false, "Should autoexplore descend to the next floor when the current floor is cleared?");
@@ -49,6 +50,7 @@ namespace Elin_AutoExplore
         public ConfigEntry<bool> HandleHarvestables { get; set; }
         public ConfigEntry<bool> HandleMineables { get; set; }
         public ConfigEntry<bool> HandleShrines { get; set; }
+        public ConfigEntry<bool> StopOnUnusableShrine { get; set; }
         public ConfigEntry<bool> HandleStatues { get; set; }
         public ConfigEntry<bool> HandleChests { get; set; }
         public ConfigEntry<bool> AutoDescend { get; set; }
