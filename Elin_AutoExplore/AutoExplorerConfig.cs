@@ -28,6 +28,9 @@ namespace Elin_AutoExplore
             this.MinMP = config.Bind("Regen", "minMP", 90, "Percentage of MP to start meditation.");
             this.MinHP = config.Bind("Regen", "minHP", 100, "Percentage of HP to start meditation.");
 
+            this.LogPerformance = config.Bind("Debug", "LogPerformance", false, "Log reachability-flood and decision-cycle timings to the BepInEx console (for profiling on large maps).");
+            this.UseEarlyExitFlood = config.Bind("Performance", "UseEarlyExitFlood", true, "Stop the reachability flood at the nearest actionable target instead of flooding the whole map (much faster on large maps). Disable only if you suspect it is missing reachable targets.");
+
             this.GatheringRestrictionList = config.Bind("Restrictions", "GatheringRestrictionList", "wreck,chemicals,wall frame,debris,moss grass,a vine,pebble,stalagmite,chunk", "Comma separated list of things to ignore when harvesting.");
             this.MiningRestrictionList = config.Bind("Restrictions", "MiningRestrictionList", "metal block(copper),soil block(soil),soil block covered with vines (soil)", "Comma separated list of things to ignore when mining.");
         }
@@ -49,6 +52,8 @@ namespace Elin_AutoExplore
         public ConfigEntry<bool> HandleStatues { get; set; }
         public ConfigEntry<bool> HandleChests { get; set; }
         public ConfigEntry<bool> AutoDescend { get; set; }
+        public ConfigEntry<bool> LogPerformance { get; set; }
+        public ConfigEntry<bool> UseEarlyExitFlood { get; set; }
         public ConfigEntry<string> GatheringRestrictionList { get; set; }
         public ConfigEntry<string> MiningRestrictionList { get; set; }
         public ConfigEntry<HungerMode> HandleHunger { get; set; }

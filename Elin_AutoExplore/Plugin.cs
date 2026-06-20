@@ -127,6 +127,9 @@ public class Plugin : BaseUnityPlugin
             case State.Exploring:
                 if (shouldEat) { this.HandleFood(); break; }
                 if (shouldRest) { this.HandleResting(); break; }
+                // Disarm a trap we walked up to mid-route (only when nothing to fight), so the path past it
+                // isn't blocked by the game refusing to step onto the trap. Combat keeps its own state/case.
+                if (trap != null && !enemies.Any()) { this.HandleTrap(trap); break; }
                 break;
             case State.Combat:
                 break;
@@ -205,6 +208,9 @@ public class Plugin : BaseUnityPlugin
 
         //this.Logger.LogInfo("Current key: " + Input.inputString);
     }
+
+    // Used by AIActionFinder to emit profiling lines when AutoExplorerConfig.LogPerformance is on.
+    internal void LogPerf(string message) => this.Logger.LogMessage(message);
 
     private bool ShouldRest()
     {
